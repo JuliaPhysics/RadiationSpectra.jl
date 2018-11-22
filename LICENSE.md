@@ -1,7 +1,9 @@
-The RadiationSpectra.jl package is licensed under the MIT "Expat" License:
+The RadiationSpectra.jl package is licensed under the MIT "Expat" License
+(with the exception of the function `peakfinder`, see below):
 
 > Copyright (c) 2018:
 >
+>    Lukas Hauertmann <lhauert@mpp.mpg.de>
 >    Oliver Schulz <oschulz@mpp.mpg.de>
 > 
 > Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,4 +23,24 @@ The RadiationSpectra.jl package is licensed under the MIT "Expat" License:
 > LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
+
+
+The function `peakfinder` is licensed under LGPL 2.1, like the original
+C++ version, part of the CERN ROOT software:
+
+> Original Copyright (c) 1999: Miroslav Morhac
+> Translation to Julia 2018: Lukas Hauertmann <lhauert@mpp.mpg.de>
 > 
+> This library is free software; you can redistribute it and/or
+> modify it under the terms of the GNU Lesser General Public
+> License as published by the Free Software Foundation; either
+> version 2.1 of the License, or (at your option) any later version.
+> 
+> This library is distributed in the hope that it will be useful,
+> but WITHOUT ANY WARRANTY; without even the implied warranty of
+> MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+> Lesser General Public License for more details.
+> 
+> You should have received a copy of the GNU Lesser General Public
+> License along with this library; if not, write to the Free Software
+> Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA

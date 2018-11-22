@@ -8,11 +8,16 @@ using Documenter
 using RadiationSpectra
 
 makedocs(
-    sitename = "RadiationSpectra",
+    sitename = "RadiationSpectra.jl",
     modules = [RadiationSpectra],
     format = :html,
     pages=[
         "Home" => "index.md",
+        "Manual" => Any[
+            "Peak Finding" => "man/spectrum_deconvolution.md",
+            "Fitting" => "man/fitting.md",
+            "Calibration" => "man/spectrum_calibration.md",
+        ],
         "API" => "api.md",
         "LICENSE" => "LICENSE.md",
     ],
