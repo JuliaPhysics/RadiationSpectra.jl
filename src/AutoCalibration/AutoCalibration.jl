@@ -67,7 +67,7 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
         fit.fitrange = fitrange
         fit.initial_parameters = Float64[ p0_scale, p0_sigma, p0_mean, p0_bg_offset, p0_bg_slope ]
 
-        lsqfit!(fit, h)
+        lsqfit!(fit, h, estimate_uncertainties=true)
         push!(peak_fits, fit)
     end
 
