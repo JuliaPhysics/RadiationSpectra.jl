@@ -20,7 +20,9 @@ strongest_peak_bin_width = StatsBase.binvolume(h_uncal, strongest_peak_bin_idx)
 strongest_peak_bin_amplitude = h_uncal.weights[strongest_peak_bin_idx]
 
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), ylims=[0, strongest_peak_bin_amplitude * 1.1]) 
+savefig("uncalibrated_spectrum_zoomed_in.svg"); nothing # hide
 ```
+![](uncalibrated_spectrum_zoomed_in.svg)
 
 2. Write a model function
 ```@example fitting_hist
@@ -55,7 +57,9 @@ RadiationSpectra.llhfit!(fitfunc, h_uncal)
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
 plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
 plot!(fitfunc, lc=:red, label="LLH Fit")
+savefig("uncalibrated_spectrum_zoomed_in_plus_llhfit.svg"); nothing # hide
 ```
+![](uncalibrated_spectrum_zoomed_in_plus_llhfit.svg)
 
 ```@example fitting_hist
 fitfunc # hide
@@ -73,7 +77,9 @@ RadiationSpectra.lsqfit!(fitfunc, h_uncal)
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
 plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
 plot!(fitfunc, lc=:red, label="LSQ Fit")
+savefig("uncalibrated_spectrum_zoomed_in_plus_lsqfit.svg"); nothing # hide
 ```
+![](uncalibrated_spectrum_zoomed_in_plus_lsqfit.svg)
 
 ```@example fitting_hist
 fitfunc # hide
@@ -102,7 +108,10 @@ xdata_err = Float64[0.5 for i in eachindex(xdata)]
 ydata_err = Float64[1 for i in eachindex(xdata)]
 
 plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), label="Data")
+savefig("xy_data.svg"); nothing # hide
 ```
+![](xy_data.svg)
+
 
 * Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref)
 ```@example fitting_1D_data
@@ -121,7 +130,10 @@ RadiationSpectra.lsqfit!(fitfunc, xdata, ydata, xdata_err, ydata_err) # xdata_er
 plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), label="Data")
 plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
 plot!(fitfunc, lc=:red, label="LSQ Fit")
+savefig("xy_data_plus_lsqfit.svg"); nothing # hide
 ```
+![](xy_data_plus_lsqfit.svg)
+
 
 ```@example fitting_1D_data
 fitfunc # hide

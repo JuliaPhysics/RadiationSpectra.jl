@@ -18,13 +18,17 @@ p_uncal = plot(h_uncal, st=:step, label="Uncalibrated spectrum");
 p_cal = plot(h_cal, st=:step, label="Calibrated spectrum", xlabel="E / keV"); 
 vline!(photon_lines, lw=0.5, color=:red, label="Photon lines")
 plot(p_uncal, p_cal, size=(800,500), layout=(2, 1)) 
+savefig("auto_calibration.svg"); nothing # hide
 ```
+![](auto_calibration.svg)
 
 Zoom into one of the peaks:
 ```@example spectrum_calibration
 p_cal = plot(h_cal, st=:step, label="Calibrated spectrum", xlabel="E / keV", xlims=[1440, 1480], size=[800, 400]); # hide
 vline!([1460.830], label="Photon line") # hide
+savefig("auto_calibration_zoom_in.svg"); nothing # hide
 ```
+![](auto_calibration_zoom_in.svg)
 
 ## Algorithm 
 
