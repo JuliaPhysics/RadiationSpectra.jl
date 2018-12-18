@@ -42,7 +42,7 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
 end
 
 
-function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}; photon_lines=[609.312, 911.204, 1120.287, 1460.830, 1764.494], min_n_peaks::Int=0, threshold::Real=10., α=0.005)::Tuple{Float64, Histogram} where {E}
+function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1}; min_n_peaks::Int=0, threshold::Real=10., α=0.005)::Tuple{Float64, Histogram} where {E}
     destVector, fPositionX = peakfinder(h, threshold=threshold)
     e_threshold = last(h.edges[1]) * 0.05
     delete_peak_idcs = Int[]
@@ -67,7 +67,7 @@ function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real,
     return c, pcf_hist
 end
 
-function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real, 1, E}, c_pre::Real=1.0; photon_lines=[609.312, 911.204, 1120.287, 1460.830, 1764.494]) where {E}
+function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1}, c_pre::Real=1.0,) where {E}
     c_pre = Float64(c_pre)
     peak_fits = FitFunction[]
     for pl in photon_lines
@@ -86,28 +86,32 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
         fit.fitrange = fitrange
         fit.initial_parameters = Float64[ p0_scale, p0_sigma, p0_mean, p0_bg_offset, p0_bg_slope ]
 
-        lsqfit!(fit, h, estimate_uncertainties=true)
+        lsqfit!(fit, h, estimate_uncertainties=false)
         push!(peak_fits, fit)
     end
 
     fitted_peak_positions = [ fr.parameters[3] for fr in peak_fits ]
-    fitted_peak_positions_err = [ fr.uncertainties[3] for fr in peak_fits ]
 
     cfit = FitFunction( linear_function_fixed_offset_at_zero )
     cfit.initial_parameters = [c_pre]
 
-    lsqfit!(cfit, fitted_peak_positions, photon_lines, fitted_peak_positions_err )
+    lsqfit!(cfit, fitted_peak_positions, photon_lines, estimate_uncertainties=false)
     c = cfit.parameters[1] 
     
     return c, peak_fits, cfit
 end
 
 
-
-
-
 """
-    calibrate_spectrum(h_uncal::Histogram, photon_lines::Array{Real, 1})::Histogram
+    calibrate_spectrum(h_uncal::Histogram, photon_lines::Array{Real, 1}; <keyword arguments>)::Histogram
+
+Returns a calibrated histogram.
+
+# Keywords
+- `sigma::Real = 2.0`: The expected sigma of a peak in the spectrum. In units of bins. 
+- `threshold::Real = 10.0`: Threshold for being identified as a peak in the deconvoluted spectrum. A single bin is identified as a peak when its weight exceeds the `threshold` and the previous bin was not identified as an peak.
+- `min_n_peaks::Int = 0`: If the number of found peaks is smaller than `min_n_peaks` the functions lowers the parameter `threshold` until enough peaks are found.
+- `α::Real = 0.005`:  = 0.5%. Acceptance level in the comparison of the peak position ratios in the peak indentification step. When the difference between the ratio of two found peak positions and the ratio of two photon lines (`photon_lines`) is smaller than `α`, the found peaks are identified as the two photon lines.
 
 Calibrate the spectrum `h_uncal`. This is done by:
 1) finding peaks through devoncolution
@@ -115,9 +119,9 @@ Calibrate the spectrum `h_uncal`. This is done by:
 3) fitting all identified peaks (with a gaussian plus first order polynomial) to get their position more precisely
 4) performe a linear fit (offset forced to 0) of these positions vs the true positions (`lines`) to get the calibration constant 
 """
-function calibrate_spectrum(h_uncal::Histogram{<:Real, 1, E}, photon_lines::Vector{<:Real}; min_n_peaks::Int = 0, threshold::Real = 10.0, α::Real = 0.005)::Histogram where {T, E}
-    c_precal = determine_calibration_constant_through_peak_ratios(h_uncal, photon_lines=photon_lines, min_n_peaks=min_n_peaks, threshold=threshold, α=α)[1]
-    c = determine_calibration_constant_through_peak_fitting(h_uncal, c_precal, photon_lines=photon_lines)[1]
+function calibrate_spectrum(h_uncal::Histogram{<:Real, 1, E}, photon_lines::Vector{<:Real}; σ::Real = 2.0, threshold::Real = 10.0, min_n_peaks::Int = 0, α::Real = 0.005)::Histogram where {T, E}
+    c_precal = determine_calibration_constant_through_peak_ratios(h_uncal, photon_lines, min_n_peaks=min_n_peaks, threshold=threshold, α=α)[1]
+    c = determine_calibration_constant_through_peak_fitting(h_uncal, photon_lines, c_precal)[1]
     h_cal = Histogram( h_uncal.edges[1] .* c, :left )
     h_cal.weights = h_uncal.weights
     return h_cal
