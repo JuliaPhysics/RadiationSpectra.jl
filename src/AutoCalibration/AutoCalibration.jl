@@ -42,8 +42,8 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
 end
 
 
-function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1}; min_n_peaks::Int=0, threshold::Real=10., α=0.005)::Tuple{Float64, Histogram} where {E}
-    destVector, fPositionX = peakfinder(h, threshold=threshold)
+function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1}; min_n_peaks::Int=0, threshold::Real=10., α=0.005, σ::Real = 2.0)::Tuple{Float64, Histogram} where {E}
+    destVector, fPositionX = peakfinder(h, threshold=threshold, sigma = σ)
     e_threshold = last(h.edges[1]) * 0.05
     delete_peak_idcs = Int[]
     for i in eachindex(fPositionX)
@@ -54,7 +54,7 @@ function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real,
     deleteat!(fPositionX, delete_peak_idcs)
     while length(fPositionX) < min_n_peaks
         threshold *= 0.75
-        destVector, fPositionX = peakfinder(h, threshold=threshold)
+        destVector, fPositionX = peakfinder(h, threshold=threshold, sigma = σ)
         delete_peak_idcs = Int[]
         for i in eachindex(fPositionX)
             if fPositionX[i] < e_threshold
@@ -120,7 +120,7 @@ Calibrate the spectrum `h_uncal`. This is done by:
 4) performe a linear fit (offset forced to 0) of these positions vs the true positions (`lines`) to get the calibration constant 
 """
 function calibrate_spectrum(h_uncal::Histogram{<:Real, 1, E}, photon_lines::Vector{<:Real}; σ::Real = 2.0, threshold::Real = 10.0, min_n_peaks::Int = 0, α::Real = 0.005)::Histogram where {T, E}
-    c_precal = determine_calibration_constant_through_peak_ratios(h_uncal, photon_lines, min_n_peaks=min_n_peaks, threshold=threshold, α=α)[1]
+    c_precal = determine_calibration_constant_through_peak_ratios(h_uncal, photon_lines, min_n_peaks=min_n_peaks, threshold=threshold, α=α, σ=σ)[1]
     c = determine_calibration_constant_through_peak_fitting(h_uncal, photon_lines, c_precal)[1]
     h_cal = Histogram( h_uncal.edges[1] .* c, :left )
     h_cal.weights = h_uncal.weights
