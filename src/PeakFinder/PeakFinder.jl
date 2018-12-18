@@ -373,8 +373,8 @@ end
 Returns a deconvoluted spectrum and an array of peak positions.
   
 # Keywords
-- `sigma::Real=2.0`: The expected sigma of a peak in the spectrum.
-- `threshold::Real=10.0`: Threshold for being identified as a peak in the deconvoluted spectrum.
+- `sigma::Real=2.0`: The expected sigma of a peak in the spectrum. In units of bins. 
+- `threshold::Real=10.0`: Threshold for being identified as a peak in the deconvoluted spectrum. A single bin is identified as a peak when its weight exceeds the `threshold` and the previous bin was not identified as an peak.
 - `backgroundRemove::Bool=true`
 - `deconIterations::Int=3`
 - `markov::Bool=true`

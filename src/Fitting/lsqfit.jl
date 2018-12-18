@@ -27,6 +27,7 @@ on the histogram `h` in the range `fit.fitrange`. The determined parameters are 
 and the corresponding uncertainties in `fit.uncertainties` for the given confidence level `fit.confidence_level`.
 
 The uncertainties are marginalizations of the covariance matrix determined by the LSQFit.jl package.
+They are only calculated if the keywort `estimate_uncertainties` is set to `true`.
 
 See [LsqFit.jl](https://github.com/JuliaNLSolvers/LsqFit.jl) for more detail.
 """
