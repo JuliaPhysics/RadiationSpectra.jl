@@ -7,6 +7,8 @@
 [![Appveyor Build Status](https://ci.appveyor.com/api/projects/status/github/JuliaHEP/RadiationSpectra.jl?branch=master&svg=true)](https://ci.appveyor.com/project/JuliaHEP/RadiationSpectra-jl)
 [![Codecov](https://codecov.io/gh/JuliaHEP/RadiationSpectra.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaHEP/RadiationSpectra.jl)
 
+RadiationSpectra.jl provides tools to analyse Radiation Spectra in Julia.
+
 
 ## Documentation
 
