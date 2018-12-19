@@ -12,5 +12,5 @@ RadiationSpectra.jl provides tools to analyse Radiation Spectra in Julia.
 
 ## Documentation
 
-* [Documentation for development version](https://JuliaHEP.github.io/RadiationSpectra.jl/stable)
+* [Documentation for stable version](https://JuliaHEP.github.io/RadiationSpectra.jl/stable)
 * [Documentation for development version](https://JuliaHEP.github.io/RadiationSpectra.jl/dev)
