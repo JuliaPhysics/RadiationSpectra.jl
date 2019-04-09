@@ -12,6 +12,8 @@ end
 
 function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:Real,1}, photon_lines::Array{<:Real,1}; α::Float64=0.005, min_nbins::Int=50)::Tuple{Float64, Histogram}
     c::Float64 = 0
+    photon_lines = sort(photon_lines)
+    fPositionX = sort(fPositionX)
     theo_ratios = calculate_ratios(photon_lines)
     exp_ratios = calculate_ratios(fPositionX)
     n_peaks = length(fPositionX)
@@ -29,7 +31,7 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
         end
     end
     nbins = 2 * length(pcfs) > min_nbins ? 2 * length(pcfs) : min_nbins
-    pcf_hist = StatsBase.fit(Histogram, pcfs, nbins= 3 * length(pcfs), closed=:left)
+    pcf_hist = StatsBase.fit(Histogram, pcfs, nbins= nbins, closed=:left)
     c = (pcf_hist.edges[1][1:length(pcf_hist.edges[1]) - 1] .+ 0.5 * step(pcf_hist.edges[1]))[findmax(pcf_hist.weights)[2]]
     tcf = Float64[] # 'true' calibration factors
     for pcf in pcfs
@@ -67,7 +69,7 @@ function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real,
     return c, pcf_hist
 end
 
-function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1}, c_pre::Real=1.0,) where {E}
+function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1}, c_pre::Real=1.0) where {E}
     c_pre = Float64(c_pre)
     peak_fits = FitFunction[]
     for pl in photon_lines
