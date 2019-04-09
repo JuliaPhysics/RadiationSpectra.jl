@@ -8,6 +8,16 @@ function calculate_ratios(pos::Array{Float64,1})::Array{Float64, 2}
     end
     return ratios
 end
+function calculate_abs_diffs(pos::Array{Float64,1})::Array{Float64, 2}
+    n = length(pos)
+    ratios = zeros(Float64, n, n)
+    for i in 1:n
+        for j in i+1:n
+            ratios[i, j] = pos[j] - pos[i]
+        end
+    end
+    return ratios
+end
 
 
 function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:Real,1}, photon_lines::Array{<:Real,1}; α::Float64=0.005, min_nbins::Int=50)::Tuple{Float64, Histogram}
@@ -16,15 +26,26 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
     fPositionX = sort(fPositionX)
     theo_ratios = calculate_ratios(photon_lines)
     exp_ratios = calculate_ratios(fPositionX)
+    Δtheo = calculate_abs_diffs(photon_lines)
     n_peaks = length(fPositionX)
     n_lines = length(photon_lines)
     pcfs = Float64[] # pre calibration factors
-    @inbounds for i in 1:n_peaks
+    calibration_constant::Float64 = 0
+    Δexp::Float64 = 0
+    for i in 1:n_peaks
         for j in i + 1:n_peaks
-            for it in 1:n_lines
+            for it in 1:n_lines-1
                 for jt in it + 1:n_lines
-                    if 1 - α <= theo_ratios[it,jt] / exp_ratios[i,j] <= 1 + α
-                        push!(pcfs, (photon_lines[it] - photon_lines[jt]) / (fPositionX[i] - fPositionX[j]) )
+                    if 1 - α <= theo_ratios[it, jt] / exp_ratios[i, j] <= 1 + α
+                        calibration_constant = (photon_lines[it] - photon_lines[jt]) / (fPositionX[i] - fPositionX[j])
+                        Δexp = calibration_constant * (fPositionX[j] - fPositionX[i])
+                        exp_peak_j = fPositionX[j] * calibration_constant
+                        exp_peak_i = fPositionX[i] * calibration_constant
+                        peak_i_rel_diff = abs(exp_peak_i - photon_lines[it]) / photon_lines[it]
+                        peak_j_rel_diff = abs(exp_peak_j - photon_lines[jt]) / photon_lines[jt]
+                        if peak_i_rel_diff < 1e-3 && peak_j_rel_diff < 1e-3
+                            push!(pcfs, calibration_constant )
+                        end
                     end
                 end
             end
@@ -40,6 +61,8 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
         end
     end
     c = mean(tcf)
+    display(theo_ratios)
+    display(Δtheo)
     return c, pcf_hist
 end
 
