@@ -3,3 +3,5 @@
 *.jl.*.cov
 *.jl.mem
 Manifest.toml
+docs/pwd/
+docs/build/
