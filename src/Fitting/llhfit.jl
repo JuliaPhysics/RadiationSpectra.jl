@@ -25,7 +25,7 @@ function llhfit(fit::FitFunction, h::Histogram)::Optim.MultivariateOptimizationR
         end
         return s
     end 
-    optim_result = optimize( log_likelihood, fit.initial_parameters )
+    optim_result = optimize( log_likelihood, collect(fit.initial_parameters) )
 end
 
 
@@ -41,6 +41,6 @@ There are no uncertainty estimations for this fit yet.
 """
 function llhfit!(fit::FitFunction, h::Histogram)::Nothing
     optim_result = llhfit(fit, h)
-    fit.parameters = optim_result.minimizer
+    fit.parameters = typeof(fit.initial_parameters)(optim_result.minimizer)
     nothing
 end
