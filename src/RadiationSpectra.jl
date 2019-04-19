@@ -8,10 +8,8 @@ using DelimitedFiles
 using Statistics
 
 using Distributions
-# using LsqFit
 using Optim
 using RecipesBase
-# using SpecialFunctions
 using StatsBase
 
 import Base: print, println, show
