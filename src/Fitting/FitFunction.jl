@@ -24,9 +24,9 @@ Plots the model function over the fitrange with 501-points.
 mutable struct FitFunction{T} <: AbstractFitFunction{T, 1}
     model::Function
     fitrange::Tuple{Union{Missing, T}, Union{Missing, T}}
-    parameters::Union{Vector{Missing}, Vector{T}}
-    uncertainties::Union{Vector{Missing}, Vector{T}}
-    initial_parameters::Union{Vector{Missing}, Vector{T}}
+    parameters::Union{Vector{Missing}, Vector{T}, NamedTuple}
+    uncertainties::Union{Vector{Missing}, Vector{T}, NamedTuple}
+    initial_parameters::Union{Vector{Missing}, Vector{T}, NamedTuple}
     confidence_level::Union{Missing, T}
 
     function FitFunction(model::Function, fitrange::AbstractRange, parameters::Vector{T}, uncertainties::Vector{T}, initial_parameters::Vector{T}, confidence_level::T) where {T <: Real}
