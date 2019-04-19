@@ -161,5 +161,5 @@ function calibrate_spectrum(h_uncal::Histogram{<:Real, 1, E}, photon_lines::Vect
     c = determine_calibration_constant_through_peak_fitting(h_uncal, photon_lines, c_precal)[1]
     h_cal = Histogram( h_uncal.edges[1] .* c, :left )
     h_cal.weights = h_uncal.weights
-    return h_cal, h_deconv, peakPositions, threshold, c
+    return h_cal, h_deconv, peakPositions, threshold, c, c_precal
 end 
