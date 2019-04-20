@@ -1,5 +1,7 @@
 name = "RadiationSpectra"
 uuid = "4f207c7e-01da-51d7-a1a0-c8c06dd1d883"
+repo = "https://github.com/JuliaHEP/RadiationSpectra.jl"
+authors = ["Lukas Hauertmann <lhauert@mpp.mpg.de>"]
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
@@ -11,3 +13,6 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
