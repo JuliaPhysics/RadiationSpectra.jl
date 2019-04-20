@@ -33,7 +33,8 @@ function model(x, par::Vector{T}) where {T}
 end
 ```
 
-3. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref)
+3. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref).
+The type, a model function, the dimensionalty of the the model and the number of parameters must be specified:
 ```@example fitting_hist
 fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters 
 set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
