@@ -24,27 +24,27 @@ plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakp
 
 2. Write a model function
 ```@example fitting_hist
-function model(x::T, par::Vector{T}) where {T}
+function model(x, par::Vector{T}) where {T}
     scale::T = par[1]
     σ::T     = par[2]
     μ::T     = par[3]
     cp0::T   = par[4] 
-    cp1::T   = par[5]
-    return scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0 + cp1 * (x - μ)
+    return @. scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0 
 end
-function model(x::Vector{T}, par::Vector{T}) where {T} return T[model(v, par) for v in x] end;
 ```
 
-3. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref)
+3. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref).
+The type, a model function, the dimensionalty of the the model and the number of parameters must be specified:
 ```@example fitting_hist
-fitfunc = RadiationSpectra.FitFunction( model ); 
-fitfunc.fitrange = (peakpos[1] - 1000, peakpos[1] + 1000)
-guess_σ = strongest_peak_bin_width * 2
-guess_amplitude = strongest_peak_bin_amplitude * guess_σ
-guess_μ = peakpos[1]
-guess_offset = 0
-guess_bg_slope = 0
-fitfunc.initial_parameters = [ guess_amplitude, guess_σ, guess_μ, guess_offset, guess_bg_slope ]
+fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters 
+set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
+p0 = (
+    A = strongest_peak_bin_amplitude * strongest_peak_bin_width * 2,
+    σ = strongest_peak_bin_width * 2,
+    μ = peakpos[1],
+    offset = 0
+)
+set_initial_parameters!(fitfunc, p0)
 fitfunc
 ```
 
@@ -86,12 +86,11 @@ fitfunc # hide
 using Plots, RadiationSpectra
 myfont = Plots.font(12) # hide
 pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
-function model(x::T, par::Vector{T}) where {T}
+function model(x, par::Vector{T}) where {T}
     cp0::T   = par[1] 
     cp1::T   = par[2]
-    return cp0 + cp1 * x
+    return @. cp0 + cp1 * x
 end
-function model(x::Vector{T}, par::Vector{T}) where {T} return T[model(v, par) for v in x] end;
 ```
 
 * Create some random data 
@@ -107,11 +106,13 @@ plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), 
 
 * Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref)
 ```@example fitting_1D_data
-fitfunc = RadiationSpectra.FitFunction( model ); 
-fitfunc.fitrange = (xdata[1], xdata[end])
-guess_offset = 0
-guess_bg_slope = 1
-fitfunc.initial_parameters = Float64[ guess_offset, guess_bg_slope ]
+fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 2 ); 
+set_fitranges!(fitfunc, ((xdata[1], xdata[end]),) )
+p0 = (
+    offset = 0,
+    linear_slope = 1
+)
+set_initial_parameters!(fitfunc, p0)
 fitfunc
 ```
 

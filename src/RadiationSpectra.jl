@@ -8,15 +8,25 @@ using DelimitedFiles
 using Statistics
 
 using Distributions
-using LsqFit
 using Optim
 using RecipesBase
-using SpecialFunctions
 using StatsBase
 
 import Base: print, println, show
 
+export FitFunction
+export get_ndims, get_nparams
+export set_fitranges!
+export set_parameter_names!
+export set_initial_parameters!
+export get_fitted_parameters
+export get_initial_parameters
+
+export llhfit!, lsqfit!
+
 export peakfinder
+export calibrate_spectrum
+
 
 """
     get_example_spectrum()::Histogram
@@ -30,14 +40,14 @@ function get_example_spectrum()::Histogram
     return h
 end
 
-
 include("PeakFinder/PeakFinder.jl")
 
 include("Fitting/FitFunction.jl")
-include("Fitting/plotrecipes.jl")
-include("Fitting/lsqfit.jl")
-include("Fitting/llhfit.jl")
 include("Fitting/general_model_functions.jl")
+
+include("Fitting/llhfit.jl")
+
+include("Fitting/lsqfit.jl")
 
 include("AutoCalibration/AutoCalibration.jl")
 

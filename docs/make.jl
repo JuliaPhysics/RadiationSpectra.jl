@@ -26,9 +26,11 @@ makedocs(
         "LICENSE" => "LICENSE.md",
     ],
     doctest = ("fixdoctests" in ARGS) ? :fix : true,
-    format = Documenter.HTML(canonical = "https://JuliaHEP.github.io/RadiationSpectra.jl/stable/", prettyurls = !("local" in ARGS))
+    format = Documenter.HTML(   canonical = "https://JuliaHEP.github.io/RadiationSpectra.jl/stable/", 
+                                prettyurls = !("local" in ARGS) 
+    )
 )
 
 deploydocs(
-    repo = "github.com/JuliaHEP/RadiationSpectra.jl.git"
+    repo = "github.com/JuliaHEP/RadiationSpectra.jl.git",
 )

@@ -1,43 +1,46 @@
-"""
-    gauss(x::T, p::Vector{T})::T
+FitFunction(s::Symbol) = FitFunction(Float64, Val(s))
+FitFunction(T::Type{<:AbstractFloat}, s::Symbol) = FitFunction(T, Val(s))
 
-A Gaussian with 3 parameters:
-- `p[1]`: Scale/Amplitude
-- `p[2]`: σ
-- `p[3]`: μ
-"""
-function gauss(x::T, p::Vector{T})::T where {T}
-    scale::T = p[1]
-    σ::T     = p[2]
-    μ::T     = p[3]
-    return scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) 
-end
-"""
-    gauss(x::Vector{T}, p::Vector{T})::Vector{T}
 
-Maps `x` to `gauss(x::T, p::Vector{T})::T`
-"""
-function gauss(x::Vector{T}, p::Vector{T})::Vector{T} where {T}
-    return T[ gauss(v, p) for v in x ]
+function FitFunction(T::Type{<:AbstractFloat}, s::Val{:Gauss})
+    ff = FitFunction{T}( Gauss, 1, 3 ) 
+    set_parameter_names!(ff, ["A", "σ", "μ"])
+    set_initial_parameters!(ff, [1, 1, 0])
+    set_fitranges!(ff, ([-1, 1],))
+    return ff
 end
 
-function gauss_plus_first_order_polynom(x::T, p::Vector{T})::T where {T}
-    scale::T = p[1]
-    σ::T     = p[2]
-    μ::T     = p[3]
-    cp0::T   = p[4] 
-    cp1::T   = p[5]
-    return @fastmath scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0 + cp1 * (x - μ)
+function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusConstantBackground})
+    ff = FitFunction{T}( Gauss_plus_linear_background, 1, 4 ) 
+    set_parameter_names!(ff, ["A", "σ", "μ", "offset"])
+    set_initial_parameters!(ff, [1, 1, 0, 0])
+    set_fitranges!(ff, ([-1, 1],))
+    return ff
 end
-
-function gauss_plus_first_order_polynom(x::Vector{T}, p::Vector{T})::Vector{T} where {T}
-    return T[ gauss_plus_first_order_polynom(v, p) for v in x ]
+function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusLinearBackground})
+    ff = FitFunction{T}( Gauss_plus_linear_background, 1, 5 ) 
+    set_parameter_names!(ff, ["A", "σ", "μ", "offset", "lin. slope"])
+    set_initial_parameters!(ff, [1, 1, 0, 0, 0])
+    set_fitranges!(ff, ([-1, 1],))
+    return ff
 end
 
 
-function linear_function_fixed_offset_at_zero(x::T, p::Vector{T})::T where {T}
-    return p[1] * x
+function Gauss(x::Union{T, Vector{T}}, A::T, σ::T, μ::T) where {T <: AbstractFloat}
+    return @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2)
 end
-function linear_function_fixed_offset_at_zero(x::Vector{T}, p::Vector{T})::Vector{T} where {T}
-    return T[ linear_function_fixed_offset_at_zero(v, p) for v in x ]
+Gauss(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = Gauss(x, p... )
+function PDF_Gauss(x::Union{T, Vector{T}}, σ::T, μ::T) where {T <: AbstractFloat}
+    return @. exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2)
 end
+PDF_Gauss(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = PDF_Gauss(x, p... )
+
+function Gauss_plus_linear_background(x::Union{T, Vector{T}}, A::T, σ::T, μ::T, offset::T, lin_slope::T) where {T <: AbstractFloat}
+    return @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + lin_slope * (x - μ) + offset
+end
+Gauss_plus_linear_background(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = Gauss_plus_linear_background(x, p... )
+
+function Gauss_plus_const_background(x::Union{T, Vector{T}}, A::T, σ::T, μ::T, offset::T) where {T <: AbstractFloat}
+    return @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + offset
+end
+Gauss_plus_const_background(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = Gauss_plus_const_background(x, p... )
