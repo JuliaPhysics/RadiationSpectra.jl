@@ -34,7 +34,7 @@ end
 """
     lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram)::Nothing where {T <: AbstractFloat, NP}
 
-Performs a Least Square Fit with the model `fit.model` and the initial parameters `fit.initial_parameters`
+Performs a least square fit with the model `fit.model` and the initial parameters `fit.initial_parameters`
 on the histogram `h` in the range `fit.fitranges[1]`. The determined parameters are stored in `fit.fitted_parameters`.
 """
 function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram)::Nothing where {T <: AbstractFloat, NP}

@@ -9,7 +9,9 @@ abstract type AbstractFitFunction{T, ND, NP} end
     struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
 
 T: Precision type
+
 ND: Dimensionality
+
 NP: NP parameters
 
 Fields:
@@ -38,7 +40,6 @@ end
 
 get_ndims(ff::FitFunction{T, ND}) where {T <: AbstractFloat, ND} = ND
 get_nparams(ff::FitFunction{T, ND, NP}) where {T <: AbstractFloat, ND, NP} = NP
-
 
 function set_fitranges!(ff::FitFunction{T, N}, fitranges::NTuple{N, NTuple{2, <:Real}})::Nothing where {T <: AbstractFloat, N}
      for idim in 1:N
