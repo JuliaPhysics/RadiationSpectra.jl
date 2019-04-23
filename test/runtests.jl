@@ -16,26 +16,57 @@ using Test
         @test abs(c - c_true) / c_true < 0.025
     end
 
-    ff = FitFunction(T, :GaussPlusLinearBackground)
+    ff_lsq = FitFunction(T, :GaussPlusLinearBackground)
 
-    set_fitranges!(ff, ((1461 - 20, 1461 + 20),))
-    set_initial_parameters!(ff, T[100, 1, 1461, 0, 0])
-    lsqfit!(ff, h_cal)
-
-    fitted_pars = get_fitted_parameters(ff)
-    @show fitted_pars
+    set_fitranges!(ff_lsq, ((1461 - 20, 1461 + 20),))
+    set_initial_parameters!(ff_lsq, T[10000, 1.4, 1461, 20, 0])
+    lsqfit!(ff_lsq, h_cal)
+    
+    fitted_pars = collect(get_fitted_parameters(ff_lsq))
     @testset "LSQ Fit" begin
-        @test abs(fitted_pars[:μ] - 1460.830) <= 3
-    end
-    
-    set_initial_parameters!(ff, fitted_pars)
-    llhfit!(ff, h_cal)
-    
-    fitted_pars = get_fitted_parameters(ff)
-    @show fitted_pars
-    @testset "LLH Fit" begin
-        @test abs(fitted_pars[:μ] - 1460.830) <= 3
+        @test abs(fitted_pars[3] - 1460.830) <= 3
     end
 
+    ff_llh = FitFunction(T, :GaussPlusLinearBackground)
+    set_fitranges!(ff_llh, ((1461 - 20, 1461 + 20),))
+    fitted_pars[1] = 0.9 * fitted_pars[1]
+
+    set_initial_parameters!(ff_llh, fitted_pars)
+    llhfit!(ff_llh, h_cal)
+    
+    fitted_pars = get_fitted_parameters(ff_llh)
+    @show ff_llh
+    @testset "LLH Fit" begin
+        @test abs(fitted_pars[3] - 1460.830) <= 3
+    end
+
+
+    @testset "General model functions" begin
+        ff = FitFunction(T, :Gauss)
+        RadiationSpectra._set_fitted_parameters!(ff, [1, 1, 0])
+        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
+        println(ff)
+        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
+        
+        ff = FitFunction(:PDF_Gauss)
+        ff = FitFunction(T, :PDF_Gauss)
+        RadiationSpectra._set_fitted_parameters!(ff, [1, 0])
+        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
+        println(ff)
+        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
+        
+        ff = FitFunction(T, :GaussPlusConstantBackground)
+        RadiationSpectra._set_fitted_parameters!(ff, [1, 1, 0, 0])
+        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
+        println(ff)
+        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
+        
+        ff = FitFunction(T, :GaussPlusLinearBackground)
+        RadiationSpectra._set_fitted_parameters!(ff, [1, 1, 0, 0, 0])
+        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
+        println(ff)
+        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
+    end
+    
 
 end # testset
