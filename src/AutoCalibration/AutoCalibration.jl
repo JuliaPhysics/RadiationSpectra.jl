@@ -73,8 +73,11 @@ end
 
 
 function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1}; 
-            min_n_peaks::Int = length(photon_lines), threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3) where {E}
+            min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 4 * length(photon_lines), threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3) where {E}
     h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
+    if length(peakPositions) > max_n_peaks 
+        peakPositions = peakPositions[1:max_n_peaks]
+    end
     e_threshold = last(h.edges[1]) * 0.05
     delete_peak_idcs = Int[]
     for i in eachindex(peakPositions)
@@ -158,8 +161,8 @@ Calibrate the spectrum `h_uncal`. This is done by:
 3) fitting all identified peaks (with a gaussian plus first order polynomial) to get their position more precisely
 4) performe a linear fit (offset forced to 0) of these positions vs the true positions (`lines`) to get the calibration constant 
 """
-function calibrate_spectrum(h_uncal::Histogram{<:Real, 1, E}, photon_lines::Vector{<:Real}; σ::Real = 3.0, threshold::Real = 50.0, min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 50, α::Real = 0.01, rtol::Real = 5e-3) where {T, E}
-    c_precal, h_deconv, peakPositions, threshold = determine_calibration_constant_through_peak_ratios(h_uncal, photon_lines, min_n_peaks=min_n_peaks, threshold=threshold, α=α, σ=σ, rtol=rtol)
+function calibrate_spectrum(h_uncal::Histogram{<:Real, 1, E}, photon_lines::Vector{<:Real}; σ::Real = 3.0, threshold::Real = 50.0, min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 4 * length(photon_lines), α::Real = 0.01, rtol::Real = 5e-3) where {T, E}
+    c_precal, h_deconv, peakPositions, threshold = determine_calibration_constant_through_peak_ratios(h_uncal, photon_lines, min_n_peaks=min_n_peaks, max_n_peaks = max_n_peaks, threshold=threshold, α=α, σ=σ, rtol=rtol)
     c = determine_calibration_constant_through_peak_fitting(h_uncal, photon_lines, c_precal)[1]
     h_cal = Histogram( h_uncal.edges[1] .* c, :left )
     h_cal.weights = h_uncal.weights

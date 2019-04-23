@@ -44,7 +44,7 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram)::Nothing where {T <: 
     if (last_bin > length(h.weights)) last_bin = length(h.weights) end
     bin_centers::Vector{T} = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
     counts::Vector{T} = h.weights[first_bin:last_bin]
-    weights = sqrt.(counts) # Poisson distributed
+    weights::Vector{T} = sqrt.(counts) # Poisson distributed
     weights = [ w != 0 ? w : 1.  for w in weights] 
 
     lsqfit!(fit, bin_centers, counts, weights)
