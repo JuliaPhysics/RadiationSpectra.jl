@@ -1,4 +1,5 @@
-function peakfinder(source::AbstractArray; sigma::Real=2., threshold::Real=10., backgroundRemove::Bool=true, deconIterations::Int=3, markov::Bool=true, averWindow::Int=3)
+function peakfinder(source::AbstractArray; σ::Real=2., threshold::Real=10., backgroundRemove::Bool=true, deconIterations::Int=3, markov::Bool=true, averWindow::Int=3)
+    sigma::Float64 = σ
     PEAK_WINDOW::Int = 1024 # const of TSpectrum
     if (sigma < 1) throw(ArgumentError("Invalid sigma, must be greater than or equal to 1")) end
     if (threshold<=0 || threshold>=100) throw(ArgumentError("Invalid threshold, must be between 0 and 100")) end
@@ -373,7 +374,7 @@ end
 Returns a deconvoluted spectrum and an array of peak positions.
   
 # Keywords
-- `sigma::Real=2.0`: The expected sigma of a peak in the spectrum. In units of bins. 
+- `σ::Real=2.0`: The expected sigma of a peak in the spectrum. In units of bins. 
 - `threshold::Real=10.0`: Threshold for being identified as a peak in the deconvoluted spectrum. A single bin is identified as a peak when its weight exceeds the `threshold` and the previous bin was not identified as an peak.
 - `backgroundRemove::Bool=true`
 - `deconIterations::Int=3`
