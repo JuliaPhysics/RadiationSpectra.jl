@@ -10,6 +10,7 @@ using Statistics
 using Distributions
 using Optim
 using RecipesBase
+using Requires
 using StatsBase
 
 import Base: print, println, show
