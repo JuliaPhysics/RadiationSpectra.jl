@@ -52,5 +52,9 @@ include("Fitting/lsqfit.jl")
 
 include("AutoCalibration/AutoCalibration.jl")
 
+function __init__()
+    @require BAT="c0cd4b16-88b7-57fa-983b-ab80aecada7e" include("Fitting/BAT/BAT.jl")
+    println("RadiationSpectra.jl: Hello $(ENV["USERNAME"])")
+end
 
 end # module
