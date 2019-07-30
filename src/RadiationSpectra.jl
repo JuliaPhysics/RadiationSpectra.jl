@@ -14,6 +14,8 @@ using Requires
 using StatsBase
 
 import Base: print, println, show
+import Statistics: mean
+import StatsBase: std, mean_and_std
 
 export FitFunction
 export get_ndims, get_nparams
@@ -28,6 +30,8 @@ export llhfit!, lsqfit!
 export peakfinder
 export calibrate_spectrum
 
+export mean, std, mean_and_std
+
 
 """
     get_example_spectrum()::Histogram
@@ -40,6 +44,8 @@ function get_example_spectrum()::Histogram
     h.weights = weights
     return h
 end
+
+include("Statistics/Statistics.jl")
 
 include("PeakFinder/PeakFinder.jl")
 
