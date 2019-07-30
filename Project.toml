@@ -3,6 +3,7 @@ uuid = "4f207c7e-01da-51d7-a1a0-c8c06dd1d883"
 version = "0.2.0"
 
 [deps]
+BAT = "c0cd4b16-88b7-57fa-983b-ab80aecada7e"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
