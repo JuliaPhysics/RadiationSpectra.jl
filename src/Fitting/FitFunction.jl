@@ -24,33 +24,45 @@ Fields:
 """
 struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
     model::Function
-    fitranges::NTuple{ND, Vector{T}}
-    parameter_names::Vector{Symbol}
-    fitted_parameters::Vector{T}
-    initial_parameters::Vector{T}
+    fitranges::NTuple{ND, AbstractVector{T}}
+    parameter_names::AbstractVector{Symbol}
+    fitted_parameters::AbstractVector{T}
+    initial_parameters::AbstractVector{T}
+    parameter_bounds::AbstractVector{<:Interval}
+    backend_result::Vector{Any}
 
     function FitFunction{T}(model::Function, ndims::Int, nparams::Int) where {T <: AbstractFloat}
         fitranges::NTuple{ndims, Vector{T}} = NTuple{ndims, Vector{T}}( [-Inf, Inf] for idim in 1:ndims)
         parameter_names::Vector{Symbol} = [Symbol("par$(ipar)") for ipar in 1:nparams]
         fitted_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
         initial_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
-        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters)
+        parameter_bounds = [ T(nextfloat(typemin(T))/2)..T(prevfloat(typemax(T))/2) for ipar in 1:nparams]
+        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters, parameter_bounds, [missing])
     end
 end
 
 get_ndims(ff::FitFunction{T, ND}) where {T <: AbstractFloat, ND} = ND
 get_nparams(ff::FitFunction{T, ND, NP}) where {T <: AbstractFloat, ND, NP} = NP
+get_pricision_type(ff::FitFunction{T}) where {T <: AbstractFloat} = T
+
+function set_parameter_bounds!(ff::FitFunction{T}, par_bounds::Vector{<:Interval})::Nothing where {T <: AbstractFloat}
+    nparams::Int = get_nparams(ff)
+    @assert length(par_bounds) == nparams "Wrong number of parameter bounds."
+    for i in 1:nparams
+        ff.parameter_bounds[i] = par_bounds[i]
+    end
+end
 
 function set_fitranges!(ff::FitFunction{T, N}, fitranges::NTuple{N, NTuple{2, <:Real}})::Nothing where {T <: AbstractFloat, N}
      for idim in 1:N
-        ff.fitranges[idim][:] = T.([ fitranges[idim][1], fitranges[idim][2] ]) 
+        ff.fitranges[idim][:] = T.([ fitranges[idim][1], fitranges[idim][2] ])
     end
     nothing
 end
 function set_fitranges!(ff::FitFunction{T, N}, fitranges::NTuple{N, AbstractVector{<:Real}})::Nothing where {T <: AbstractFloat, N}
     for idim in 1:N
         @assert length(fitranges[idim]) == 2 "All vectors in `fitranges` must have length 2. But in dimension $(idim) it is $(length(fitranges[idim])) ($(fitranges[idim]))."
-        ff.fitranges[idim][:] = T.([ first(fitranges[idim]), last(fitranges[idim]) ]) 
+        ff.fitranges[idim][:] = T.([ first(fitranges[idim]), last(fitranges[idim]) ])
     end
     nothing
 end
@@ -94,14 +106,14 @@ end
 function print(io::IO, f::FitFunction)
     println(io, f)
 end
-function show(io::IO, f::FitFunction) 
+function show(io::IO, f::FitFunction)
     println(io, f)
 end
-function show(io::IO, ::MIME"text/plain", f::FitFunction) 
+function show(io::IO, ::MIME"text/plain", f::FitFunction)
     show(io, f)
 end
 
-@recipe function f(ff::FitFunction; npoints = 501, use_initial_parameters = false) 
+@recipe function f(ff::FitFunction; npoints = 501, use_initial_parameters = false)
     x = collect(range(ff.fitranges[1][1], stop=ff.fitranges[1][2], length=npoints))
     par = use_initial_parameters ? ff.initial_parameters : ff.fitted_parameters
     y = ff.model(x, collect(par))
@@ -109,4 +121,3 @@ end
     label --> (use_initial_parameters ? "Fit model with initial parameters" : "Fit model with fitted parameters")
     x,y
 end
-
