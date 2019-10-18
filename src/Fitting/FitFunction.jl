@@ -41,9 +41,17 @@ struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
     end
 end
 
-get_ndims(ff::FitFunction{T, ND}) where {T <: AbstractFloat, ND} = ND
-get_nparams(ff::FitFunction{T, ND, NP}) where {T <: AbstractFloat, ND, NP} = NP
-get_pricision_type(ff::FitFunction{T}) where {T <: AbstractFloat} = T
+get_ndims(ff::AbstractFitFunction{T, ND}) where {T <: AbstractFloat, ND} = ND
+get_nparams(ff::AbstractFitFunction{T, ND, NP}) where {T <: AbstractFloat, ND, NP} = NP
+get_pricision_type(ff::AbstractFitFunction{T}) where {T <: AbstractFloat} = T
+
+function get_fit_backend_result(f::AbstractFitFunction)
+    return get_fit_backend_result(f.backend_result[1])
+end
+function set_fit_backend_result!(f::AbstractFitFunction, r)
+    f.backend_result[1] = r
+    nothing
+end
 
 function set_parameter_bounds!(ff::FitFunction{T}, par_bounds::Vector{<:Interval})::Nothing where {T <: AbstractFloat}
     nparams::Int = get_nparams(ff)
@@ -53,13 +61,13 @@ function set_parameter_bounds!(ff::FitFunction{T}, par_bounds::Vector{<:Interval
     end
 end
 
-function set_fitranges!(ff::FitFunction{T, N}, fitranges::NTuple{N, NTuple{2, <:Real}})::Nothing where {T <: AbstractFloat, N}
+function set_fitranges!(ff::AbstractFitFunction{T, N}, fitranges::NTuple{N, NTuple{2, <:Real}})::Nothing where {T <: AbstractFloat, N}
      for idim in 1:N
         ff.fitranges[idim][:] = T.([ fitranges[idim][1], fitranges[idim][2] ])
     end
     nothing
 end
-function set_fitranges!(ff::FitFunction{T, N}, fitranges::NTuple{N, AbstractVector{<:Real}})::Nothing where {T <: AbstractFloat, N}
+function set_fitranges!(ff::AbstractFitFunction{T, N}, fitranges::NTuple{N, AbstractVector{<:Real}})::Nothing where {T <: AbstractFloat, N}
     for idim in 1:N
         @assert length(fitranges[idim]) == 2 "All vectors in `fitranges` must have length 2. But in dimension $(idim) it is $(length(fitranges[idim])) ($(fitranges[idim]))."
         ff.fitranges[idim][:] = T.([ first(fitranges[idim]), last(fitranges[idim]) ])
@@ -113,10 +121,10 @@ function show(io::IO, ::MIME"text/plain", f::FitFunction)
     show(io, f)
 end
 
-@recipe function f(ff::FitFunction; npoints = 501, use_initial_parameters = false)
+@recipe function f(ff::FitFunction; npoints = 501, use_initial_parameters = false, bin_width = 1.0)
     x = collect(range(ff.fitranges[1][1], stop=ff.fitranges[1][2], length=npoints))
     par = use_initial_parameters ? ff.initial_parameters : ff.fitted_parameters
-    y = ff.model(x, collect(par))
+    y = bin_width .* (ff.model(x, collect(par)))
     linecolor --> (use_initial_parameters ? :green : :red)
     label --> (use_initial_parameters ? "Fit model with initial parameters" : "Fit model with fitted parameters")
     x,y
