@@ -10,10 +10,12 @@ using Statistics
 
 using Distributions
 using IntervalSets
+using LsqFit
 using Optim
 using RecipesBase
 using Requires
 using StatsBase
+using ShapesOfVariables
 
 import Base: print, println, show
 import Statistics: mean
@@ -60,11 +62,10 @@ include("Fitting/lsqfit.jl")
 
 include("AutoCalibration/AutoCalibration.jl")
 
-using BAT
-include("Fitting/BAT/BAT.jl")
+using ArraysOfArrays
+# include("Fitting/BAT/BAT.jl")
 function __init__()
-    # @require BAT="c0cd4b16-88b7-57fa-983b-ab80aecada7e" include("Fitting/BAT/BAT.jl")
-    println("RadiationSpectra.jl: Hello $(ENV["USERNAME"])")
+    @require BAT="c0cd4b16-88b7-57fa-983b-ab80aecada7e" include("Fitting/BAT/BAT.jl")
 end
 
 end # module
