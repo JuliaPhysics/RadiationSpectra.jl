@@ -6,7 +6,7 @@ Abstract type for an `ND`-dimensional fit of eltype `T` with `NP` parameters.
 abstract type AbstractFitFunction{T, ND, NP} end
 
 """
-    struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
+    mutable struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
 
 T: Precision type
 
@@ -22,14 +22,14 @@ Fields:
 - `initial_parameters::Vector{T}`: Initial parameters.
 
 """
-struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
+mutable struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
     model::Function
     fitranges::NTuple{ND, AbstractVector{T}}
     parameter_names::AbstractVector{Symbol}
     fitted_parameters::AbstractVector{T}
     initial_parameters::AbstractVector{T}
     parameter_bounds::AbstractVector{<:Interval}
-    backend_result::Vector{Any}
+    backend_result::Any
 
     function FitFunction{T}(model::Function, ndims::Int, nparams::Int) where {T <: AbstractFloat}
         fitranges::NTuple{ndims, Vector{T}} = NTuple{ndims, Vector{T}}( [-Inf, Inf] for idim in 1:ndims)
@@ -37,7 +37,7 @@ struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
         fitted_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
         initial_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
         parameter_bounds = [ T(nextfloat(typemin(T))/2)..T(prevfloat(typemax(T))/2) for ipar in 1:nparams]
-        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters, parameter_bounds, [missing])
+        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters, parameter_bounds, missing)
     end
 end
 
@@ -46,10 +46,10 @@ get_nparams(ff::AbstractFitFunction{T, ND, NP}) where {T <: AbstractFloat, ND, N
 get_pricision_type(ff::AbstractFitFunction{T}) where {T <: AbstractFloat} = T
 
 function get_fit_backend_result(f::AbstractFitFunction)
-    return get_fit_backend_result(f.backend_result[1])
+    return f.backend_result
 end
 function set_fit_backend_result!(f::AbstractFitFunction, r)
-    f.backend_result[1] = r
+    f.backend_result = r
     nothing
 end
 

@@ -8,6 +8,7 @@ using DelimitedFiles
 using LinearAlgebra
 using Statistics
 
+using ArraysOfArrays
 using Distributions
 using IntervalSets
 using LsqFit
@@ -15,7 +16,7 @@ using Optim
 using RecipesBase
 using Requires
 using StatsBase
-using ShapesOfVariables
+using ValueShapes
 
 import Base: print, println, show
 import Statistics: mean
@@ -26,6 +27,7 @@ export get_ndims, get_nparams
 export set_fitranges!
 export set_parameter_names!
 export set_initial_parameters!
+export set_parameter_bounds!
 export get_fitted_parameters
 export get_initial_parameters
 
@@ -62,8 +64,7 @@ include("Fitting/lsqfit.jl")
 
 include("AutoCalibration/AutoCalibration.jl")
 
-using ArraysOfArrays
-# include("Fitting/BAT/BAT.jl")
+
 function __init__()
     @require BAT="c0cd4b16-88b7-57fa-983b-ab80aecada7e" include("Fitting/BAT/BAT.jl")
 end
