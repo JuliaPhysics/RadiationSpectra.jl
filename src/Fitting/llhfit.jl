@@ -9,6 +9,9 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
 
     function log_likelihood(params::Vector{T})::T
         s::T = 0
+        if in(0, in.(params, fit.parameter_bounds))
+            return Inf # -log(0.0)
+        end
         @inbounds for i in eachindex(counts)
             # s += -logpdf(Poisson(fit.model(bin_centers[i], params) * bin_widths[i]), counts[i])
             s += -logpdf(Poisson(fit.model(bin_centers[i], params)), counts[i])

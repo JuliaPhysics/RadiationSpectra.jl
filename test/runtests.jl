@@ -23,6 +23,7 @@ using Test
     set_initial_parameters!(ff_lsq, T[10000, 1.4, 1461, 20, 0])
     set_parameter_bounds!(ff_lsq, [0.0..10^7, 0.2..2.0, 1455..1465, 0..10^4, -30..30])
 
+    llhfit!(ff_lsq, h_cal)
     lsqfit!(ff_lsq, h_cal)
     
     fitted_pars = collect(get_fitted_parameters(ff_lsq))
