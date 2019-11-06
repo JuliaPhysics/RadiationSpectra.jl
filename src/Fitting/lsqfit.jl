@@ -1,17 +1,17 @@
-function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}; weights::Vector{T} = ones(T, length(xdata))) where {T <: AbstractFloat, NP}
-    f = curve_fit(fit.model, xdata, ydata, weights, fit.initial_parameters)
+function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}; weights::Vector{T} = ones(T, length(xdata)), kwargs...) where {T <: AbstractFloat, NP}
+    f = curve_fit(fit.model, xdata, ydata, weights, fit.initial_parameters; kwargs...)
     set_fit_backend_result!(fit, f)
     _set_fitted_parameters!(fit, f.param)
 end
 
-function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}, xerr::Vector{T}, yerr::Vector{T}) where {T <: AbstractFloat, NP}
+function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}, xerr::Vector{T}, yerr::Vector{T}; kwargs...) where {T <: AbstractFloat, NP}
     weights::Vector{T} = @. 1 / (xerr^2 + yerr^2)
-    return lsqfit!(fit, xdata, ydata, weights = weights)
+    return lsqfit!(fit, xdata, ydata, weights = weights; kwargs...)
 end
 
-function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}, err::Vector{T}) where {T <: AbstractFloat, NP}
+function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}, err::Vector{T}; kwargs...) where {T <: AbstractFloat, NP}
     weights::Vector{T} = inv.(err)
-    return lsqfit!(fit, xdata, ydata, weights = weights)
+    return lsqfit!(fit, xdata, ydata, weights = weights; kwargs...)
 end
 
 
@@ -31,7 +31,10 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram)::Nothing where {T <: 
     weights::Vector{T} = sqrt.(counts) # Poisson distributed
     weights = [ w != 0 ? w : 1.  for w in weights] 
 
-    lsqfit!(fit, bin_centers, counts, weights)
+    lowerbounds = map(b->b.left,  fit.parameter_bounds)
+    upperbounds = map(b->b.right, fit.parameter_bounds)
+
+    lsqfit!(fit, bin_centers, counts, weights; lower = lowerbounds, upper = upperbounds)
 end
 
 
