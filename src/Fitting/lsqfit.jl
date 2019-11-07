@@ -10,7 +10,7 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T},
 end
 
 function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}, err::Vector{T}; kwargs...) where {T <: AbstractFloat, NP}
-    weights::Vector{T} = inv.(err)
+    weights::Vector{T} = inv.(err.^2)
     return lsqfit!(fit, xdata, ydata, weights = weights; kwargs...)
 end
 
@@ -28,13 +28,12 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram)::Nothing where {T <: 
     if (last_bin > length(h.weights)) last_bin = length(h.weights) end
     bin_centers::Vector{T} = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
     counts::Vector{T} = h.weights[first_bin:last_bin]
-    weights::Vector{T} = sqrt.(counts) # Poisson distributed
-    weights = [ w != 0 ? w : 1.  for w in weights] 
+    err::Vector{T} = sqrt.(counts) # Poisson distributed
+    # weights = [ w != 0 ? w : 1.  for w in weights] 
 
     lowerbounds = map(b->b.left,  fit.parameter_bounds)
     upperbounds = map(b->b.right, fit.parameter_bounds)
 
-    lsqfit!(fit, bin_centers, counts, weights; lower = lowerbounds, upper = upperbounds)
+    lsqfit!(fit, bin_centers, counts, err; lower = lowerbounds, upper = upperbounds)
 end
-
 
