@@ -38,7 +38,7 @@ function batfit!(f::FitFunction, h::Histogram{<:Real, 1};
                 pretunesamples::Int = 5000, 
                 max_ncycles::Int = 30, 
                 BGConvergenceThreshold::Real = 1.1)
-    @show pretunesamples
+
     T = get_pricision_type(f)
     first_bin::Int = !isinf(first(f.fitranges[1])) ? StatsBase.binindex(h, first(f.fitranges[1])) : 1
     last_bin::Int  = !isinf(last( f.fitranges[1])) ? StatsBase.binindex(h, last( f.fitranges[1])) : length(h.weights)
@@ -94,8 +94,7 @@ function batfit!(f::FitFunction, h::Histogram{<:Real, 1};
 
     f.backend_result = (samples, stats) 
    _set_fitted_parameters!(f, stats.mode)
-
-    return nothing
+    f
 end
 
 
@@ -180,4 +179,10 @@ end
         end
     end
 end
+
+
+
+_get_standard_deviations(fr::Tuple{<:AbstractArray{<:BAT.PosteriorSample}, <:Any}) =
+    error("Estimation of standard deviations not yet implemented for `llhfit!``")
+
 

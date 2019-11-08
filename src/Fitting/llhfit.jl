@@ -30,8 +30,12 @@ on the histogram `h` in the range `fit.fitranges[1]`. The determined parameters 
 
 The likelihood for each individual bin is the Poission distribution.
 """
-function llhfit!(fit::FitFunction{T, 1, NP}, h::Histogram)::Nothing where {T <: AbstractFloat, NP}
+function llhfit!(fit::FitFunction{T, 1, NP}, h::Histogram) where {T <: AbstractFloat, NP}
     optim_result = llhfit(fit, h)
+    set_fit_backend_result!(fit, optim_result)
     _set_fitted_parameters!(fit, optim_result.minimizer)
-    nothing
+    fit
 end
+
+_get_standard_deviations(fr::Optim.MultivariateOptimizationResults) =
+    error("Estimation of standard deviations not yet implemented for `llhfit!``")

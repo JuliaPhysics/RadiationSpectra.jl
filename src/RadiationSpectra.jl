@@ -30,6 +30,7 @@ export set_initial_parameters!
 export set_parameter_bounds!
 export get_fitted_parameters
 export get_initial_parameters
+export get_standard_deviations
 
 export llhfit!, lsqfit!
 

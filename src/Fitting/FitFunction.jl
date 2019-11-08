@@ -121,6 +121,10 @@ function show(io::IO, ::MIME"text/plain", f::FitFunction)
     show(io, f)
 end
 
+get_standard_deviations(f::FitFunction) = _get_standard_deviations(f.backend_result)
+
+_get_standard_deviations(fr::Missing) = error("No fit performed yet.")
+
 @recipe function f(ff::FitFunction; npoints = 501, use_initial_parameters = false, bin_width = 1.0)
     x = collect(range(ff.fitranges[1][1], stop=ff.fitranges[1][2], length=npoints))
     par = use_initial_parameters ? ff.initial_parameters : ff.fitted_parameters
