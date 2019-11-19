@@ -7,8 +7,8 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
     bin_widths::Vector{T} = [StatsBase.binvolume(h, StatsBase.binindex(h, mp)) for mp in bin_centers]
     counts::Vector{T} = h.weights[first_bin:last_bin]
 
-    function log_likelihood(params::Vector{T})::T
-        s::T = 0
+    function log_likelihood(params)
+        s = 0
         if in(0, in.(params, fit.parameter_bounds))
             return Inf # -log(0.0)
         end
@@ -18,7 +18,12 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
         end
         return s
     end
-    optim_result = optimize( log_likelihood, fit.initial_parameters)
+    optim_result = Optim.optimize( log_likelihood, fit.initial_parameters )
+    uncertainties = sqrt.(diag(inv(ForwardDiff.hessian(log_likelihood, Optim.minimizer(optim_result)))))
+
+    set_fit_backend_result!(fit, (optim_result, uncertainties))
+    fit.backend_result = (optim_result, uncertainties)
+    optim_result
 end
 
 
@@ -32,10 +37,10 @@ The likelihood for each individual bin is the Poission distribution.
 """
 function llhfit!(fit::FitFunction{T, 1, NP}, h::Histogram) where {T <: AbstractFloat, NP}
     optim_result = llhfit(fit, h)
-    set_fit_backend_result!(fit, optim_result)
     _set_fitted_parameters!(fit, optim_result.minimizer)
     fit
 end
 
-_get_standard_deviations(fr::Optim.MultivariateOptimizationResults) =
-    error("Estimation of standard deviations not yet implemented for `llhfit!``")
+get_fit_backend_result(fr::Tuple{<:Optim.MultivariateOptimizationResults,<:Any}) = fr[1]
+
+_get_standard_deviations(f::FitFunction, fr::Tuple{<:Optim.MultivariateOptimizationResults,<:Any}) = fr[2] 

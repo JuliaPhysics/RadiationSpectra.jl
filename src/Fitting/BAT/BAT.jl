@@ -33,11 +33,11 @@ end
 
 export batfit!
 function batfit!(f::FitFunction, h::Histogram{<:Real, 1};
-                nsamples::Int = 10^6, 
+                nsamples::Int = 10^5, 
                 nchains::Int = 4, 
-                pretunesamples::Int = 5000, 
+                pretunesamples::Int = length(f.parameter_bounds) * 1000, 
                 max_ncycles::Int = 30, 
-                BGConvergenceThreshold::Real = 1.1)
+                BGConvergenceThreshold::Real = sqrt(length(f.parameter_bounds)))
 
     T = get_pricision_type(f)
     first_bin::Int = !isinf(first(f.fitranges[1])) ? StatsBase.binindex(h, first(f.fitranges[1])) : 1
@@ -181,8 +181,16 @@ end
 end
 
 
+get_fit_backend_result(fr::Tuple{<:Any,<:Any}) = fr
 
-_get_standard_deviations(fr::Tuple{<:AbstractArray{<:BAT.PosteriorSample}, <:Any}) =
-    error("Estimation of standard deviations not yet implemented for `llhfit!``")
+function _get_standard_deviations(f::FitFunction{T}, fr::Tuple{<:AbstractArray{<:BAT.PosteriorSample}, <:Any}) where {T}
+    uncertainties = zeros(T, length(f.fitted_parameters))
+    for i in eachindex(f.fitted_parameters)  
+        h = get_marginalized_pdf(fr[1], i, nbins = 100)
+        d = fit(Normal, h.edges[1], h.weights)
+        uncertainties[i] = d.σ
+    end
+    return uncertainties
+end
 
 

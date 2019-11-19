@@ -38,5 +38,6 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram) where {T <: AbstractF
     lsqfit!(fit, bin_centers, counts, err; lower = lowerbounds, upper = upperbounds)
 end
 
-_get_standard_deviations(fr::LsqFit.LsqFitResult) = LsqFit.stderror(fr)
+_get_standard_deviations(f::FitFunction, fr::LsqFit.LsqFitResult) = LsqFit.stderror(fr)
 
+get_fit_backend_result(fr::LsqFit.LsqFitResult) = fr

@@ -17,6 +17,9 @@ using RecipesBase
 using Requires
 using StatsBase
 using ValueShapes
+using NLSolversBase
+using ForwardDiff
+using LinearAlgebra
 
 import Base: print, println, show
 import Statistics: mean

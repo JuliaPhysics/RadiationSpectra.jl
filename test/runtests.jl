@@ -43,6 +43,20 @@ using Test
         @test abs(fitted_pars[3] - 1460.830) <= 3
     end
 
+    if @isdefined BAT
+        ff_bat = FitFunction(T, :GaussPlusLinearBackground)
+        set_fitranges!(ff_bat, ((1461 - 20, 1461 + 20),))
+        set_parameter_bounds!(ff_bat, [0.0..10^7, 0.2..2.0, 1455..1465, 0..10^4, -30..30])
+
+        batfit!(ff_bat, h_cal)
+        
+        fitted_pars = get_fitted_parameters(ff_bat)
+        @show ff_bat
+        @testset "BAT Fit" begin
+            @test abs(fitted_pars[3] - 1460.830) <= 3
+        end
+    end
+
 
     @testset "General model functions" begin
         ff = FitFunction(T, :Gauss)
