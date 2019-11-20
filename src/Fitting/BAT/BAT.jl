@@ -32,14 +32,12 @@ end
 
 
 export batfit!
-function batfit!(f::FitFunction, h::Histogram{<:Real, 1};
+function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
                 nsamples::Int = 10^5, 
                 nchains::Int = 4, 
                 pretunesamples::Int = length(f.parameter_bounds) * 1000, 
                 max_ncycles::Int = 30, 
-                BGConvergenceThreshold::Real = sqrt(length(f.parameter_bounds)))
-
-    T = get_pricision_type(f)
+                BGConvergenceThreshold::Real = sqrt(length(f.parameter_bounds))) where {T, ND, NP}
     first_bin::Int = !isinf(first(f.fitranges[1])) ? StatsBase.binindex(h, first(f.fitranges[1])) : 1
     last_bin::Int  = !isinf(last( f.fitranges[1])) ? StatsBase.binindex(h, last( f.fitranges[1])) : length(h.weights)
     if first_bin < 1 first_bin = 1 end
@@ -47,7 +45,11 @@ function batfit!(f::FitFunction, h::Histogram{<:Real, 1};
     h_sub = Histogram(h.edges[1][first_bin:last_bin], h.weights[first_bin:last_bin-1])
     h_bat = HistogramModelLikelihood(h_sub, f)
 
-    prior_dists = Tuple(map(b -> Uniform(b.left, b.right), f.parameter_bounds))
+    prior_dists = if !ismissing(f.parameter_bounds)
+        Tuple(map(b -> Uniform(b.left, b.right), f.parameter_bounds))
+    else
+        error("`batfit!` needs a `FitFunction` with parameter_bounds.")
+    end
 
     prior = BAT.NamedTupleDist( (;zip( f.parameter_names, prior_dists)...))
 
@@ -138,9 +140,7 @@ function calculate_localmode(h::StatsBase.Histogram{<:Real, N}) where {N}
 end
 
 function get_marginalized_pdf(f::FitFunction, ipar::Int; nbins = 100)
-    samples = f.backend_result[1]
-    pdf = fit(Histogram, flatview(samples.params)[ipar, :], FrequencyWeights(samples.weight), nbins = nbins, closed = :left)
-    return normalize(pdf)
+    return get_marginalized_pdf(f.backend_result[1], ipar, nbins = nbins)
 end
 
 function central_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = BAT.standard_confidence_vals)

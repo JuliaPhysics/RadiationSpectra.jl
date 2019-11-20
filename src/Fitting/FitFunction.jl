@@ -118,7 +118,10 @@ function show(io::IO, f::FitFunction)
     println(io, f)
 end
 function show(io::IO, ::MIME"text/plain", f::FitFunction)
-    show(io, f)
+    println(io, f)
+end
+function show(io::IO, ::MIME"text/html", f::FitFunction)
+    println(io, f)
 end
 
 get_standard_deviations(f::FitFunction) = _get_standard_deviations(f, f.backend_result)

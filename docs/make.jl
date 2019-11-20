@@ -10,6 +10,7 @@ ENV["PYTHON"]=""
 Pkg.build("PyCall")
 using Plots
 pyplot(fmt=:svg)
+using BAT
 using RadiationSpectra
 
 makedocs(
