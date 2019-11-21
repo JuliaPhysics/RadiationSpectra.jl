@@ -30,7 +30,7 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram) where {T <: AbstractF
     bin_centers::Vector{T} = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
     counts::Vector{T} = h.weights[first_bin:last_bin]
     err::Vector{T} = sqrt.(counts) # Poisson distributed
-    # weights = [ w != 0 ? w : 1.  for w in weights] 
+    err = [ w != 0 ? w : 1.  for w in err] 
 
     lowerbounds = map(b->b.left,  fit.parameter_bounds)
     upperbounds = map(b->b.right, fit.parameter_bounds)
