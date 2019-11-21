@@ -60,6 +60,13 @@ function set_parameter_bounds!(ff::FitFunction{T}, par_bounds::Vector{<:Interval
         ff.parameter_bounds[i] = par_bounds[i]
     end
 end
+function set_parameter_bounds!(ff::FitFunction{T}, par_bounds::NamedTuple)::Nothing where {T <: AbstractFloat}
+    nparams::Int = get_nparams(ff)
+    @assert length(par_bounds) == nparams "Wrong number of parameter bounds."
+    for i in 1:nparams
+        ff.parameter_bounds[i] = par_bounds[i]
+    end
+end
 
 function set_fitranges!(ff::AbstractFitFunction{T, N}, fitranges::NTuple{N, NTuple{2, <:Real}})::Nothing where {T <: AbstractFloat, N}
      for idim in 1:N
