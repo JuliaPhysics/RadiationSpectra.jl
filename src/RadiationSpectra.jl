@@ -15,6 +15,7 @@ using LsqFit
 using Optim
 using RecipesBase
 using Requires
+using SpecialFunctions
 using StatsBase
 using ValueShapes
 using NLSolversBase
