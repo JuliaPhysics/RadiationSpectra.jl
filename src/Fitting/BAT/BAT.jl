@@ -24,9 +24,6 @@ function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {
         end
         log_likelihood += logpdf(Poisson( expected_counts ), l.weights[i])
     end
-    if isnan(log_likelihood)
-
-    end
     return log_likelihood
 end
 
@@ -38,8 +35,8 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
                 pretunesamples::Int = length(f.parameter_bounds) * 1000, 
                 max_ncycles::Int = 30, 
                 BGConvergenceThreshold::Real = sqrt(length(f.parameter_bounds))) where {T, ND, NP}
-    first_bin::Int = !isinf(first(f.fitranges[1])) ? StatsBase.binindex(h, first(f.fitranges[1])) : 1
-    last_bin::Int  = !isinf(last( f.fitranges[1])) ? StatsBase.binindex(h, last( f.fitranges[1])) : length(h.weights)
+    first_bin = !isinf(first(f.fitranges[1])) ? StatsBase.binindex(h, first(f.fitranges[1])) : 1
+    last_bin  = !isinf(last( f.fitranges[1])) ? StatsBase.binindex(h, last( f.fitranges[1])) : length(h.weights)
     if first_bin < 1 first_bin = 1 end
     if (last_bin > length(h.weights)) last_bin = length(h.weights) end
     h_sub = Histogram(h.edges[1][first_bin:last_bin], h.weights[first_bin:last_bin-1])

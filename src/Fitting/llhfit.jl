@@ -19,10 +19,13 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
         return s
     end
     optim_result = Optim.optimize( log_likelihood, fit.initial_parameters )
-    uncertainties = sqrt.(diag(inv(ForwardDiff.hessian(log_likelihood, Optim.minimizer(optim_result)))))
-
+    uncertainties = try
+        sqrt.(diag(inv(ForwardDiff.hessian(log_likelihood, Optim.minimizer(optim_result)))))
+    catch e
+        zeros(T, length(fit.initial_parameters))
+    end
+    
     set_fit_backend_result!(fit, (optim_result, uncertainties))
-    fit.backend_result = (optim_result, uncertainties)
     optim_result
 end
 
