@@ -5,7 +5,7 @@ using RadiationSpectra
 using IntervalSets
 
 using Test
-# @testset "Package RadiationSpectra" begin
+@testset "Package RadiationSpectra" begin
     T = Float64
 
     h_uncal = RadiationSpectra.get_example_spectrum()
