@@ -15,6 +15,17 @@ end
 
 # BAT.nparams(mll::HistogramModelLikelihood) = get_nparams(mll.f)
 
+function log_pdf_poisson(λ::T, k::U) where {T<:Real,U<:Real}
+    R = float(promote_type(T,U))
+    if λ >= 0 && k >= 0 && isinteger(k)
+        result = (iszero(k) ? R(k) : R(log(λ) * k)) - λ - logabsgamma(k + 1)[1]
+        R(result)
+    else
+        R(-Inf)
+    end
+end
+
+
 function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {H, F, T}
     log_likelihood::Float64 = 0
     @inbounds for i in eachindex(l.weights)
@@ -22,7 +33,7 @@ function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {
         if isnan(expected_counts) || expected_counts < 0 
             expected_counts = T(Inf)
         end
-        log_likelihood += logpdf(Poisson( expected_counts ), l.weights[i])
+        log_likelihood += log_pdf_poisson(expected_counts, l.weights[i])
     end
     return log_likelihood
 end
