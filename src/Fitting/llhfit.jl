@@ -10,15 +10,20 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
     function log_likelihood(params)
         s = 0
         if in(0, in.(params, fit.parameter_bounds))
-            return Inf # -log(0.0)
+            return Inf
         end
         @inbounds for i in eachindex(counts)
-            # s += -logpdf(Poisson(fit.model(bin_centers[i], params) * bin_widths[i]), counts[i])
-            s += -logpdf(Poisson(fit.model(bin_centers[i], params)), counts[i])
+            expected_counts = fit.model(bin_centers[i], params)
+            if isnan(expected_counts) || expected_counts < 0 
+                expected_counts = T(Inf)
+            end
+            s += -logpdf(Poisson(expected_counts), counts[i])
         end
         return s
     end
     optim_result = Optim.optimize( log_likelihood, fit.initial_parameters )
+
+    println(optim_result)
     uncertainties = try
         sqrt.(diag(inv(ForwardDiff.hessian(log_likelihood, Optim.minimizer(optim_result)))))
     catch e
