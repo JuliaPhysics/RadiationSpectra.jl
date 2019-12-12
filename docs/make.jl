@@ -5,9 +5,6 @@
 # for local builds.
 
 using Documenter
-using Pkg
-ENV["PYTHON"]=""
-Pkg.build("PyCall")
 using Plots
 pyplot(fmt=:svg)
 using BAT
@@ -27,11 +24,15 @@ makedocs(
         "LICENSE" => "LICENSE.md",
     ],
     doctest = ("fixdoctests" in ARGS) ? :fix : true,
-    format = Documenter.HTML(   canonical = "https://JuliaPhysics.github.io/RadiationSpectra.jl/stable/", 
-                                prettyurls = !("local" in ARGS) 
-    )
+    format = Documenter.HTML(canonical = "https://JuliaPhysics.github.io/RadiationSpectra.jl/stable/", prettyurls = !("local" in ARGS)),
+    linkcheck = ("linkcheck" in ARGS),
+    strict = !("local" in ARGS),
 )
 
 deploydocs(
     repo = "github.com/JuliaPhysics/RadiationSpectra.jl.git",
+    devbranch = "master",
+    devurl = "master",
+    forcepush = true,
+    push_preview = true,
 )
