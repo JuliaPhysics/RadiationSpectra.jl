@@ -4,21 +4,21 @@ struct HistogramModelLikelihood{H<:Histogram{<:Real, 1}, F<:FitFunction, T <: Re
     weights::Vector{T}
     midpoints::Vector{T}
     bin_volumes::Vector{T}
+    logabsgamma::Vector{T}
 
     function HistogramModelLikelihood(h::H, f::FitFunction) where {H <: Histogram{<:Real, 1}}
         T = get_pricision_type(f)
         new{H, typeof(f), T}( h, f, h.weights,
                         StatsBase.midpoints(h.edges[1]),
-                        T[StatsBase.binvolume(h, i) for i in eachindex(h.weights)] )
+                        T[StatsBase.binvolume(h, i) for i in eachindex(h.weights)],
+                        T[logabsgamma(w + 1)[1] for w in h.weights]  )
     end
 end
 
-# BAT.nparams(mll::HistogramModelLikelihood) = get_nparams(mll.f)
-
-function log_pdf_poisson(λ::T, k::U) where {T<:Real,U<:Real}
+function log_pdf_poisson(λ::T, k::U, logabsgamma::T) where {T<:Real,U<:Real}
     R = float(promote_type(T,U))
     if λ >= 0 && k >= 0 && isinteger(k)
-        result = (iszero(k) ? R(k) : R(log(λ) * k)) - λ - logabsgamma(k + 1)[1]
+        result = (iszero(k) ? R(k) : R(log(λ) * k)) - λ - logabsgamma
         R(result)
     else
         R(-Inf)
@@ -33,7 +33,7 @@ function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {
         if isnan(expected_counts) || expected_counts < 0 
             expected_counts = T(Inf)
         end
-        log_likelihood += log_pdf_poisson(expected_counts, l.weights[i])
+        log_likelihood += log_pdf_poisson(expected_counts, l.weights[i], l.logabsgamma[i])
     end
     return log_likelihood
 end
