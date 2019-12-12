@@ -4,10 +4,11 @@
 Pages = ["fitting.md"]
 ```
 
-## `Likelihood (LLH) Fit - 1D-Histogram`
+## Likelihood (LLH) Fit - 1D-Histogram
 
 1. Get a spectrum and find a peak to fit
 ```@example fitting_hist
+using BAT # hide
 using Plots, RadiationSpectra, StatsBase
 myfont = Plots.font(12) # hide
 pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
@@ -24,22 +25,22 @@ plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakp
 
 2. Write a model function
 ```@example fitting_hist
-function model(x, par::Vector{T}) where {T}
-    scale::T = par[1]
-    σ::T     = par[2]
-    μ::T     = par[3]
-    cp0::T   = par[4] 
+function model(x, par)
+    scale = par[1]
+    σ    = par[2]
+    μ     = par[3]
+    cp0   = par[4]
     return @. scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0 
 end
 ```
 
-3. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref).
+1. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref).
 The type, a model function, the dimensionalty of the the model and the number of parameters must be specified:
 ```@example fitting_hist
 fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters 
 set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
 p0 = (
-    A = strongest_peak_bin_amplitude * strongest_peak_bin_width * 2,
+    A = strongest_peak_bin_amplitude * strongest_peak_bin_width * 4,
     σ = strongest_peak_bin_width * 2,
     μ = peakpos[1],
     offset = 0
@@ -61,12 +62,12 @@ plot!(fitfunc, lc=:red, label="LLH Fit", fmt=:svg)
 fitfunc # hide
 ```
 
-## `LSQ Fit - 1D-Histogram`
+## LSQ Fit - 1D-Histogram
 
 To perfrom a LSQ Fit on a spectrum repeat the first three steps from the [Likelihood (LLH) Fit - 1D-Histogram](@ref).
 Then, 
 
-4. Performe the fit with the [`RadiationSpectra.lsqfit!`](@ref)-function and plot the result
+1. Performe the fit with the [`RadiationSpectra.lsqfit!`](@ref)-function and plot the result
 ```@example fitting_hist
 RadiationSpectra.lsqfit!(fitfunc, h_uncal)
 
@@ -79,7 +80,38 @@ plot!(fitfunc, lc=:red, label="LSQ Fit", fmt=:svg)
 fitfunc # hide
 ```
 
-## `LSQ Fit - 1D-Data Arrays`
+## Bayesian Fit - BAT.jl 
+
+This package can also perform a bayesian fit, via the `Bayesian Analysis Toolkit` - [BAT.jl](https://github.com/bat/BAT.jl) package,
+to histograms. BAT.jl is used via Require.jl. Thus, in order to use the bayesian fit, one has to load BAT.jl before loading RadiationSpectra.jl
+and one has to define parameter bounds.
+
+```@example fitting_hist
+using BAT
+using RadiationSpectra
+using IntervalSets
+set_parameter_bounds!(fitfunc, [0..sum(h_uncal.weights), 0..1000, 0.9*peakpos[1]..1.1*peakpos[1], 0..500])
+```
+
+Then, one can perform bayesian fit via
+```@example fitting_hist
+RadiationSpectra.batfit!(fitfunc, h_uncal)
+```
+
+One can also get the marginalized posterior distribution for each parameter via
+```@example fitting_hist
+pars = fitfunc.fitted_parameters
+h_mpdf = RadiationSpectra.get_marginalized_pdf(fitfunc, 3)
+```
+
+and there is a user plot recipe for marginalized probability histograms defined:
+```@example fitting_hist
+plot_marginalized_pdf(h_mpdf)
+xlims!(pars[3]-5, pars[3]+5)
+xticks!([pars[3]-4, pars[3], pars[3]+4])
+```
+
+## LSQ Fit - 1D-Data Arrays
 
 * Write a model function
 ```@example fitting_1D_data
@@ -87,7 +119,7 @@ using Plots, RadiationSpectra
 myfont = Plots.font(12) # hide
 pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
 function model(x, par::Vector{T}) where {T}
-    cp0::T   = par[1] 
+    cp0::T   = par[1]
     cp1::T   = par[2]
     return @. cp0 + cp1 * x
 end
@@ -103,7 +135,6 @@ ydata_err = Float64[1 for i in eachindex(xdata)]
 plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), label="Data", fmt=:svg)
 ```
 
-
 * Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref)
 ```@example fitting_1D_data
 fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 2 ); 
@@ -113,7 +144,7 @@ p0 = (
     linear_slope = 1
 )
 set_initial_parameters!(fitfunc, p0)
-fitfunc
+println(fitfunc)
 ```
 
 * Performe the fit and plot the result
@@ -125,7 +156,23 @@ plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
 plot!(fitfunc, lc=:red, label="LSQ Fit", fmt=:svg)
 ```
 
-
 ```@example fitting_1D_data
-fitfunc # hide
+println(fitfunc) # hide
 ```
+
+## Uncertainty Estimation
+
+For all fit backends (`lsqfit!`, `llhfit!` and `batfit!`) one can estimate the uncertainties of the
+fitted parameters
+```@example fitting_hist
+fitfunc.fitted_parameters
+```
+
+via
+```@example fitting_hist
+σs = RadiationSpectra.get_standard_deviations(fitfunc)
+```
+
+The estimation is under the assumption that the probability density function of each
+parameter follows a normal distribution and that the parameters are uncorrelated.
+The returned values correspond to 1σ of the normal distributions.

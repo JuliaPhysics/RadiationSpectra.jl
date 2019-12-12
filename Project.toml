@@ -3,18 +3,42 @@ uuid = "4f207c7e-01da-51d7-a1a0-c8c06dd1d883"
 version = "0.2.0"
 
 [deps]
+ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
+NLSolversBase = "d41bc354-129a-5804-8e4c-c37616107c6c"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+ValueShapes = "136a8f8c-c49b-4edb-8b98-f3d64d48be8f"
 
 [compat]
+ArraysOfArrays = "0.4"
+Distributions = "0.21.10"
+ForwardDiff = "0.10"
+IntervalSets = "0.3"
+LsqFit = "0.8"
+NLSolversBase = "7.5"
+Optim = "0.19"
+RecipesBase = "0.7"
+Requires = "0.5,1"
+SpecialFunctions = "0.8,0.9"
+StatsBase = "0.32"
+ValueShapes = "0.5"
+BAT = "1"
 julia = "1"
 
 [extras]
+IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+BAT = "c0cd4b16-88b7-57fa-983b-ab80aecada7e"
 
 [targets]
-test = ["Test"]
+test = ["Test", "IntervalSets", "BAT"]

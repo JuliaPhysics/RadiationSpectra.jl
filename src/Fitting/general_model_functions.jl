@@ -31,48 +31,48 @@ function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusLinearBackground
     return ff
 end
 
+function min_0(x::T) where {T <: Real}
+    return x < 0 ? zero(typeof(x)) : x
+end
+function min_0(x)
+    min_0.(x)
+end
 
-function Gauss(x::T, A::T, σ::T, μ::T)::T where {T <: AbstractFloat}
-    r::T = A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2)
-    if σ <= 0 || A < 0 return T(Inf) end
-    if r < 0 r = 0 end
-    return r 
-end
-function Gauss(x::Vector{T}, A::T, σ::T, μ::T)::Vector{T} where {T <: AbstractFloat}
-    return Gauss.( x, A, σ, μ)
-end
-Gauss(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = Gauss(x, p... )
+function get_inf(x::T) where {T <: Real}
+    return T(Inf)
+end 
+function get_inf(x) 
+    return get_inf.(x)
+end 
 
-function PDF_Gauss(x::T, σ::T, μ::T)::T where {T <: AbstractFloat}
-    r::T = exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2)
-    if σ <= 0 return T(Inf) end
-    if r < 0 r = 0 end
-    return r 
+function Gauss(x, p)
+    scale = p[1]
+    σ     = p[2]
+    μ     = p[3]
+    return @fastmath @. scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2))
 end
-function PDF_Gauss(x::Vector{T}, σ::T, μ::T)::Vector{T} where {T <: AbstractFloat}
-    return PDF_Gauss.( x, σ, μ)
-end
-PDF_Gauss(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = PDF_Gauss(x, p... )
 
-function Gauss_plus_linear_background(x::T, A::T, σ::T, μ::T, offset::T, lin_slope::T)::T where {T <: AbstractFloat}
-    r::T = A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + lin_slope * (x - μ) + offset
-    if σ <= 0 || A < 0 || offset < 0 return T(Inf) end
-    if r < 0 r = 0 end
-    return r 
+function PDF_Gauss(x, p)
+    σ = p[1]
+    μ = p[2]
+    return min_0(@fastmath @. exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)))
 end
-function Gauss_plus_linear_background(x::Vector{T}, A::T, σ::T, μ::T, offset::T, lin_slope::T)::Vector{T} where {T <: AbstractFloat}
-    return Gauss_plus_linear_background.( x, A, σ, μ, offset, lin_slope)
-end
-Gauss_plus_linear_background(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = Gauss_plus_linear_background(x, p... )
 
-function Gauss_plus_const_background(x::T, A::T, σ::T, μ::T, offset::T)::T where {T <: AbstractFloat}
-    r::T = A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + offset
-    if σ <= 0 || A < 0 || offset < 0 return T(Inf) end
-    if r < 0 r = 0 end
-    return r
+function Gauss_plus_linear_background(x, p)
+    A = p[1]
+    σ = p[2]
+    μ = p[3]
+    offset = p[4]
+    lin_slope = p[5]
+    if σ <= 0 || A < 0 || offset < 0 return get_inf(x) end
+    return min_0(@fastmath @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + lin_slope * (x - μ) + offset)
 end
-function Gauss_plus_const_background(x::Vector{T}, A::T, σ::T, μ::T, offset::T)::Vector{T} where {T <: AbstractFloat}
-    return Gauss_plus_const_background.( x, A, σ, μ, offset)
-    if σ <= 0 || A < 0 return T(Inf) end
+
+function Gauss_plus_const_background(x, p)
+    A = p[1]
+    σ = p[2]
+    μ = p[3]
+    offset = p[4]
+    if σ <= 0 || A < 0 || offset < 0 return get_inf(x) end
+    return min_0(@fastmath @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + offset)
 end
-Gauss_plus_const_background(x::Union{T, Vector{T}}, p::Vector{T}) where {T <: AbstractFloat} = Gauss_plus_const_background(x, p... )
