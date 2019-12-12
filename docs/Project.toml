@@ -7,4 +7,5 @@ PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
-Documenter = "~0.22"
+Documenter = "~0.24.2"
+BAT = "~1.0.0"

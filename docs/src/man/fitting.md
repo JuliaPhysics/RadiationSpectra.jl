@@ -40,7 +40,7 @@ The type, a model function, the dimensionalty of the the model and the number of
 fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters 
 set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
 p0 = (
-    A = strongest_peak_bin_amplitude * strongest_peak_bin_width * 2,
+    A = strongest_peak_bin_amplitude * strongest_peak_bin_width * 4,
     σ = strongest_peak_bin_width * 2,
     μ = peakpos[1],
     offset = 0
@@ -107,8 +107,8 @@ h_mpdf = RadiationSpectra.get_marginalized_pdf(fitfunc, 3)
 and there is a user plot recipe for marginalized probability histograms defined:
 ```@example fitting_hist
 plot_marginalized_pdf(h_mpdf)
-xlims!(pars[3]-5, pars[3]+5) # hide
-xticks!([pars[3]-4, pars[3], pars[3]+4]) # hide
+xlims!(pars[3]-5, pars[3]+5)
+xticks!([pars[3]-4, pars[3], pars[3]+4])
 ```
 
 ## LSQ Fit - 1D-Data Arrays
