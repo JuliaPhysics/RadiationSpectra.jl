@@ -25,7 +25,7 @@ function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusConstantBackgrou
 end
 function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusLinearBackground})
     ff = FitFunction{T}( Gauss_plus_linear_background, 1, 5 ) 
-    set_parameter_names!(ff, ["A", "σ", "μ", "offset", "lin. slope"])
+    set_parameter_names!(ff, ["A", "σ", "μ", "offset", "linear_slope"])
     set_initial_parameters!(ff, [1, 1, 0, 1, 0])
     set_fitranges!(ff, ([-1, 1],))
     return ff

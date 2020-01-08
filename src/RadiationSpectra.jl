@@ -21,6 +21,8 @@ using ValueShapes
 using NLSolversBase
 using ForwardDiff
 using LinearAlgebra
+using Tables
+using TypedTables
 
 import Base: print, println, show
 import Statistics: mean

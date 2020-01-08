@@ -60,11 +60,14 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
     end
 
     prior = BAT.NamedTupleDist( (;zip( f.parameter_names, prior_dists)...))
+    prior = BAT.DistributionDensity(prior, bounds_type = BAT.reflective_bounds)
 
     posterior = BAT.PosteriorDensity(h_bat, prior)
+
     algorithm = BAT.MetropolisHastings()
 
     tuning = BAT.AdaptiveMetropolisTuning(
+        r = 0.5,
         λ = 0.5,
         α = 0.15..0.35,
         β = 1.5,
@@ -77,10 +80,10 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
     )
 
     init = BAT.MCMCInitStrategy(
-        ninit_tries_per_chain = 8..128,
-        max_nsamples_pretune = pretunesamples,
-        max_nsteps_pretune = pretunesamples * 10,
-        max_time_pretune = Inf
+        init_tries_per_chain = 8..128,
+        max_nsamples_init = pretunesamples,
+        max_nsteps_init = pretunesamples * 10,
+        max_time_init = Inf
     )
 
     burnin = BAT.MCMCBurninStrategy(
@@ -90,7 +93,7 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         max_ncycles = max_ncycles
     )
 
-    samples, stats = BAT.bat_sample(
+    samples = BAT.bat_sample(
         posterior, (nsamples, nchains), algorithm,
         max_nsteps = 10 * nsamples,
         max_time = Inf,
@@ -102,13 +105,18 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         filter = true
     )
 
-    f.backend_result = (samples, stats) 
-   _set_fitted_parameters!(f, stats.mode)
+    mode = BAT.mode(samples.result)
+    _set_fitted_parameters!(f, mode[])
+    f.backend_result = (samples, )
     f
 end
 
+function BAT.NamedTupleShape(f::FitFunction)
+    ts = Tuple(map(b -> ScalarShape{Real}(), f.parameter_names))
+    return BAT.NamedTupleShape(NamedTuple{Tuple(f.parameter_names)}(ts))
+end
 
-function get_samples_inds_by_chain_id(samples::BAT.PosteriorSampleVector, ichain::Int)
+function get_samples_inds_by_chain_id(samples::BAT.DensitySampleVector, ichain::Int)
     chainids = Int[]
     sampleids = samples.info
     for s in sampleids
@@ -119,37 +127,49 @@ function get_samples_inds_by_chain_id(samples::BAT.PosteriorSampleVector, ichain
     return inds
 end
 
-function get_histogram_pdf(samples::BAT.PosteriorSampleVector; nbins = 10, sample_range::AbstractVector{Int} = Int[]) where {N}
+function get_histogram_pdf(samples::BAT.DensitySampleVector; nbins = 10, sample_range::AbstractVector{Int} = Int[]) where {N}
     if isempty(sample_range) sample_range = 1:length(samples) end
-    n_params::Int = length(samples[1].params)
-    pdf = fit(Histogram, Tuple([flatview(samples.params)[ipar, sample_range] for ipar in 1:n_params]), 
-                FrequencyWeights(samples.weight[sample_range]), closed=:left, nbins=nbins)
+    n_params::Int = length(samples[1].v)
+    pdf = fit(Histogram, Tuple([flatview(samples.v)[ipar, sample_range] for ipar in 1:n_params]), 
+    FrequencyWeights(samples.weight[sample_range]), closed=:left, nbins=nbins)
     return normalize(pdf)
 end
 
-function get_marginalized_pdf(samples::BAT.PosteriorSampleVector, pars::NTuple{N, Int}; nbins = 100, sample_range::AbstractVector{Int} = Int[]) where {N}
+function get_marginalized_pdf(samples::BAT.DensitySampleVector, pars::NTuple{N, Int}; nbins = 100, sample_range::AbstractVector{Int} = Int[]) where {N}
     if isempty(sample_range) sample_range = 1:length(samples) end
-    pdf = fit(Histogram, Tuple([flatview(samples.params)[ipar, sample_range] for ipar in pars]), 
+    pdf = fit(Histogram, Tuple([flatview(samples.v)[ipar, sample_range] for ipar in pars]), 
                 FrequencyWeights(samples.weight[sample_range]), closed=:left, nbins=nbins)
     return normalize(pdf)
 end
-get_marginalized_pdf(samples::BAT.PosteriorSampleVector, ipar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
+get_marginalized_pdf(samples::BAT.DensitySampleVector, ipar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
     get_marginalized_pdf(samples, (ipar,); nbins = nbins, sample_range = sample_range)
 
-get_marginalized_pdf(samples::BAT.PosteriorSampleVector, xpar::Int, ypar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
+get_marginalized_pdf(samples::BAT.DensitySampleVector, xpar::Int, ypar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
     get_marginalized_pdf(samples, (xpar, ypar); nbins = nbins, sample_range = sample_range)
 
-get_marginalized_pdf(samples::BAT.PosteriorSampleVector, var::ValueShapes.ValueAccessor; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
+get_marginalized_pdf(samples::BAT.DensitySampleVector, var::ValueShapes.ValueAccessor; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
     get_marginalized_pdf(samples, Tuple([var.offset + i for i in 1:var.len ]); nbins = nbins, sample_range = sample_range)
+
+function get_marginalized_pdf(f::FitFunction, ipar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[])
+    return get_marginalized_pdf(BAT.unshaped.(f.backend_result[1].result), ipar, nbins = nbins, sample_range = sample_range)
+end
+
+function get_marginalized_pdf(samples::Table, pars::NTuple{N, Int}; nbins = 100, sample_range::AbstractVector{Int} = Int[]) where {N}
+    if isempty(sample_range) sample_range = 1:length(samples) end
+    ct = columntable(samples.v)
+    pdf = fit(Histogram, Tuple([ct[ipar][sample_range] for ipar in pars]), 
+                FrequencyWeights(samples.weight[sample_range]), closed=:left, nbins=nbins)
+    return normalize(pdf)
+end
+get_marginalized_pdf(samples::Table, ipar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
+    get_marginalized_pdf(samples, (ipar,); nbins = nbins, sample_range = sample_range)
+
 
 function calculate_localmode(h::StatsBase.Histogram{<:Real, N}) where {N}
     cartesian_inds = CartesianIndices(h.weights)[findmax(h.weights)[2]]
     return [StatsBase.midpoints(h.edges[i])[cartesian_inds[i]] for i in 1:N]
 end
 
-function get_marginalized_pdf(f::FitFunction, ipar::Int; nbins = 100)
-    return get_marginalized_pdf(f.backend_result[1], ipar, nbins = nbins)
-end
 
 function central_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = BAT.standard_confidence_vals)
     sort!(intervals)
@@ -188,17 +208,15 @@ end
     end
 end
 
+get_fit_backend_result(fr::Tuple) = fr
 
-get_fit_backend_result(fr::Tuple{<:Any,<:Any}) = fr
-
-function _get_standard_deviations(f::FitFunction{T}, fr::Tuple{<:AbstractArray{<:BAT.PosteriorSample}, <:Any}) where {T}
+function _get_standard_deviations(f::FitFunction{T}, fr::Tuple) where {T}
     uncertainties = zeros(T, length(f.fitted_parameters))
     for i in eachindex(f.fitted_parameters)  
-        h = get_marginalized_pdf(fr[1], i, nbins = 100)
+        h = get_marginalized_pdf(BAT.unshaped.(fr[1].result), i, nbins = 100)
         d = fit(Normal, h.edges[1], h.weights)
         uncertainties[i] = d.σ
     end
     return uncertainties
 end
-
 
