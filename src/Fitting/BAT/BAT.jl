@@ -111,14 +111,23 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
     f
 end
 
+### Utilties
+
+get_fit_backend_result(fr::Tuple) = fr
+
+get_bat_result(ff::FitFunction)::BAT.DensitySampleVector = get_fit_backend_result(ff)[1].result
+
 function BAT.NamedTupleShape(f::FitFunction)
     ts = Tuple(map(b -> ScalarShape{Real}(), f.parameter_names))
     return BAT.NamedTupleShape(NamedTuple{Tuple(f.parameter_names)}(ts))
 end
 
-function get_samples_inds_by_chain_id(samples::BAT.DensitySampleVector, ichain::Int)
+get_samples_inds_by_chain_id(ff::FitFunction, ichain::Int = 1) = 
+    get_samples_inds_by_chain_id(get_bat_result(ff), ichain)
+
+function get_samples_inds_by_chain_id(bat_result, ichain::Int)
     chainids = Int[]
-    sampleids = samples.info
+    sampleids = bat_result.info
     for s in sampleids
         if !(s.chainid in chainids) push!(chainids, s.chainid) end
     end
@@ -127,42 +136,45 @@ function get_samples_inds_by_chain_id(samples::BAT.DensitySampleVector, ichain::
     return inds
 end
 
-function get_histogram_pdf(samples::BAT.DensitySampleVector; nbins = 10, sample_range::AbstractVector{Int} = Int[]) where {N}
-    if isempty(sample_range) sample_range = 1:length(samples) end
-    n_params::Int = length(samples[1].v)
-    pdf = fit(Histogram, Tuple([flatview(samples.v)[ipar, sample_range] for ipar in 1:n_params]), 
-    FrequencyWeights(samples.weight[sample_range]), closed=:left, nbins=nbins)
-    return normalize(pdf)
+function _get_standard_deviations(f::FitFunction{T}, fr::Tuple) where {T}
+    uncertainties = zeros(T, length(f.fitted_parameters))
+    for i in eachindex(f.fitted_parameters)  
+        h = get_marginalized_pdf(BAT.unshaped.(fr[1].result), i, nbins = 100)
+        d = fit(Normal, h.edges[1], h.weights)
+        uncertainties[i] = d.σ
+    end
+    return uncertainties
 end
+
+unshape(samples::BAT.DensitySampleVector) =
+    samples.v isa ShapedAsNTArray ? ValueShapes.unshaped.(samples) : samples
 
 function get_marginalized_pdf(samples::BAT.DensitySampleVector, pars::NTuple{N, Int}; nbins = 100, sample_range::AbstractVector{Int} = Int[]) where {N}
     if isempty(sample_range) sample_range = 1:length(samples) end
-    pdf = fit(Histogram, Tuple([flatview(samples.v)[ipar, sample_range] for ipar in pars]), 
-                FrequencyWeights(samples.weight[sample_range]), closed=:left, nbins=nbins)
+    unshaped_samples = unshape(samples)
+    pdf = fit(Histogram, Tuple([flatview(unshaped_samples.v)[ipar, sample_range] for ipar in pars]), 
+                FrequencyWeights(unshaped_samples.weight[sample_range]), closed=:left, nbins=nbins)
     return normalize(pdf)
 end
+
+get_marginalized_pdf(f::FitFunction, args...; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
+    get_marginalized_pdf(get_bat_result(f), args..., nbins = nbins, sample_range = sample_range)
+
 get_marginalized_pdf(samples::BAT.DensitySampleVector, ipar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
     get_marginalized_pdf(samples, (ipar,); nbins = nbins, sample_range = sample_range)
-
-get_marginalized_pdf(samples::BAT.DensitySampleVector, xpar::Int, ypar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
-    get_marginalized_pdf(samples, (xpar, ypar); nbins = nbins, sample_range = sample_range)
-
+    
 get_marginalized_pdf(samples::BAT.DensitySampleVector, var::ValueShapes.ValueAccessor; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
     get_marginalized_pdf(samples, Tuple([var.offset + i for i in 1:var.len ]); nbins = nbins, sample_range = sample_range)
+    
 
-function get_marginalized_pdf(f::FitFunction, ipar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[])
-    return get_marginalized_pdf(BAT.unshaped.(f.backend_result[1].result), ipar, nbins = nbins, sample_range = sample_range)
+function get_histogram_pdf(samples::BAT.DensitySampleVector; nbins = 10, sample_range::AbstractVector{Int} = Int[]) where {N}
+    unshaped_samples = unshape(samples)
+    n_params::Int = size(flatview(unshaped_samples.v), 1)
+    get_marginalized_pdf(unshaped_samples, Tuple(1:n_params), nbins = nbins, sample_range = sample_range)
 end
+get_histogram_pdf(f::FitFunction, args...; kwargs...) = 
+    get_histogram_pdf(get_bat_result(f), args...; kwargs...)
 
-function get_marginalized_pdf(samples::Table, pars::NTuple{N, Int}; nbins = 100, sample_range::AbstractVector{Int} = Int[]) where {N}
-    if isempty(sample_range) sample_range = 1:length(samples) end
-    ct = columntable(samples.v)
-    pdf = fit(Histogram, Tuple([ct[ipar][sample_range] for ipar in pars]), 
-                FrequencyWeights(samples.weight[sample_range]), closed=:left, nbins=nbins)
-    return normalize(pdf)
-end
-get_marginalized_pdf(samples::Table, ipar::Int; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
-    get_marginalized_pdf(samples, (ipar,); nbins = nbins, sample_range = sample_range)
 
 
 function calculate_localmode(h::StatsBase.Histogram{<:Real, N}) where {N}
@@ -206,17 +218,5 @@ end
             h_ints[i]
         end
     end
-end
-
-get_fit_backend_result(fr::Tuple) = fr
-
-function _get_standard_deviations(f::FitFunction{T}, fr::Tuple) where {T}
-    uncertainties = zeros(T, length(f.fitted_parameters))
-    for i in eachindex(f.fitted_parameters)  
-        h = get_marginalized_pdf(BAT.unshaped.(fr[1].result), i, nbins = 100)
-        d = fit(Normal, h.edges[1], h.weights)
-        uncertainties[i] = d.σ
-    end
-    return uncertainties
 end
 
