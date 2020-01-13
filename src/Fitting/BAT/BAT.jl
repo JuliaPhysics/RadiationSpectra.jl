@@ -1,3 +1,9 @@
+export BATResult
+export batfit!
+export get_marginalized_pdf
+export get_histogram_pdf
+export get_samples_inds_by_chain_id
+
 struct HistogramModelLikelihood{H<:Histogram{<:Real, 1}, F<:FitFunction, T <: Real} <: BAT.AbstractDensity
     h::H
     f::F
@@ -38,9 +44,21 @@ function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {
     return log_likelihood
 end
 
+# function FitFunction{T}(model::Function, ndims::Int, prior::BAT.DistributionDensity) where {T <: AbstractFloat}
+#     ff = FitFunction{T}(model, ndims, totalndof(prior))
+#     return ff
+# end
 
-export batfit!
+
+mutable struct BATResult{B} 
+    bat_result::B
+
+    BATResult(b::B) where B = new{B}(b)
+end
+
+
 function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
+                prior = missing,
                 nsamples::Int = 10^5, 
                 nchains::Int = 4, 
                 pretunesamples::Int = length(f.parameter_bounds) * 1000, 
@@ -53,14 +71,16 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
     h_sub = Histogram(h.edges[1][first_bin:last_bin], h.weights[first_bin:last_bin-1])
     h_bat = HistogramModelLikelihood(h_sub, f)
 
-    prior_dists = if !ismissing(f.parameter_bounds)
-        Tuple(map(b -> Uniform(b.left, b.right), f.parameter_bounds))
-    else
-        error("`batfit!` needs a `FitFunction` with parameter_bounds.")
-    end
+    if ismissing(prior)
+        prior_dists = if !ismissing(f.parameter_bounds)
+            Tuple(map(b -> Uniform(b.left, b.right), f.parameter_bounds))
+        else
+            error("`batfit!` needs a `FitFunction` with parameter_bounds.")
+        end
 
-    prior = BAT.NamedTupleDist( (;zip( f.parameter_names, prior_dists)...))
-    prior = BAT.DistributionDensity(prior, bounds_type = BAT.reflective_bounds)
+        prior = BAT.NamedTupleDist( (;zip( f.parameter_names, prior_dists)...))
+        prior = BAT.DistributionDensity(prior, bounds_type = BAT.reflective_bounds)
+    end
 
     posterior = BAT.PosteriorDensity(h_bat, prior)
 
@@ -87,13 +107,13 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
     )
 
     burnin = BAT.MCMCBurninStrategy(
-        max_nsamples_per_cycle = 10^3,
-        max_nsteps_per_cycle = 10^4,
+        max_nsamples_per_cycle = pretunesamples,
+        max_nsteps_per_cycle = pretunesamples * 10,
         max_time_per_cycle = Inf,
         max_ncycles = max_ncycles
     )
 
-    samples = BAT.bat_sample(
+    bat_result = BATResult(BAT.bat_sample(
         posterior, (nsamples, nchains), algorithm,
         max_nsteps = 10 * nsamples,
         max_time = Inf,
@@ -103,11 +123,11 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         convergence = convergence,
         strict = false,
         filter = true
-    )
+    ))
 
-    mode = BAT.mode(samples.result)
-    _set_fitted_parameters!(f, mode[])
-    f.backend_result = (samples, )
+    # mode = BAT.mode(samples.result)
+    # _set_fitted_parameters!(f, mode[])
+    f.backend_result = (bat_result, )
     f
 end
 
@@ -115,12 +135,18 @@ end
 
 get_fit_backend_result(fr::Tuple) = fr
 
-get_bat_result(ff::FitFunction)::BAT.DensitySampleVector = get_fit_backend_result(ff)[1].result
+get_bat_result(ff::FitFunction)::BAT.DensitySampleVector = 
+    get_fit_backend_result(ff.backend_result)[1].bat_result.result
 
 function BAT.NamedTupleShape(f::FitFunction)
     ts = Tuple(map(b -> ScalarShape{Real}(), f.parameter_names))
     return BAT.NamedTupleShape(NamedTuple{Tuple(f.parameter_names)}(ts))
 end
+
+function _set_fitted_parameters!(ff::FitFunction{T}, fitted_parameters::ShapedAsNT)::Nothing where {T <: AbstractFloat}
+    _set_fitted_parameters!(ff, vcat(values(fitted_parameters[])...))
+end
+
 
 get_samples_inds_by_chain_id(ff::FitFunction, ichain::Int = 1) = 
     get_samples_inds_by_chain_id(get_bat_result(ff), ichain)
@@ -139,7 +165,7 @@ end
 function _get_standard_deviations(f::FitFunction{T}, fr::Tuple) where {T}
     uncertainties = zeros(T, length(f.fitted_parameters))
     for i in eachindex(f.fitted_parameters)  
-        h = get_marginalized_pdf(BAT.unshaped.(fr[1].result), i, nbins = 100)
+        h = get_marginalized_pdf(BAT.unshaped.(get_bat_result(f)), i, nbins = 100)
         d = fit(Normal, h.edges[1], h.weights)
         uncertainties[i] = d.σ
     end
@@ -149,6 +175,7 @@ end
 unshape(samples::BAT.DensitySampleVector) =
     samples.v isa ShapedAsNTArray ? ValueShapes.unshaped.(samples) : samples
 
+
 function get_marginalized_pdf(samples::BAT.DensitySampleVector, pars::NTuple{N, Int}; nbins = 100, sample_range::AbstractVector{Int} = Int[]) where {N}
     if isempty(sample_range) sample_range = 1:length(samples) end
     unshaped_samples = unshape(samples)
@@ -156,6 +183,9 @@ function get_marginalized_pdf(samples::BAT.DensitySampleVector, pars::NTuple{N, 
                 FrequencyWeights(unshaped_samples.weight[sample_range]), closed=:left, nbins=nbins)
     return normalize(pdf)
 end
+
+get_marginalized_pdf(br::BATResult, args...; kwargs...) =
+    get_marginalized_pdf(br.bat_result, args...; kwargs...)
 
 get_marginalized_pdf(f::FitFunction, args...; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
     get_marginalized_pdf(get_bat_result(f), args..., nbins = nbins, sample_range = sample_range)
