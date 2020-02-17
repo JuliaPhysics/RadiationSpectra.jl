@@ -36,7 +36,7 @@ export get_fitted_parameters
 export get_initial_parameters
 export get_standard_deviations
 
-export llhfit!, lsqfit!
+export llhfit!, lsqfit!, linear_regression!
 
 export peakfinder
 export calibrate_spectrum
@@ -62,6 +62,8 @@ include("PeakFinder/PeakFinder.jl")
 
 include("Fitting/FitFunction.jl")
 include("Fitting/general_model_functions.jl")
+
+include("Fitting/linear_regression.jl")
 
 include("Fitting/llhfit.jl")
 
