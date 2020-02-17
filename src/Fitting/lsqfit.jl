@@ -1,8 +1,16 @@
-function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}; weights::Vector{T} = ones(T, length(xdata)), kwargs...) where {T <: AbstractFloat, NP}
-    f = curve_fit(fit.model, xdata, ydata, weights, fit.initial_parameters; kwargs...)
-    set_fit_backend_result!(fit, f)
-    _set_fitted_parameters!(fit, f.param)
-    fit
+function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}; weights::Vector{T} = ones(T, length(xdata)), force_fit =false, kwargs...) where {T <: AbstractFloat, NP}
+    fit.fitranges == ([-Inf, Inf],) ? set_fitranges!(fit, ((xdata[1], xdata[end]), )) : nothing
+    if fit.model == RadiationSpectra.Linear && force_fit == false
+        @info("Using Linear Regression instead of LsqFit.")
+        linear_regression!(fit, xdata, ydata, weights = weights, kwargs...)
+    else
+        f = curve_fit(fit.model, xdata, ydata, weights, fit.initial_parameters; kwargs...)
+        set_fit_backend_result!(fit, f)
+        _set_fitted_parameters!(fit, f.param)
+        _set_residuals!(fit, xdata, ydata)
+        _set_Χ²!(fit, xdata, f.resid)
+        fit
+    end
 end
 
 function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}, xerr::Vector{T}, yerr::Vector{T}; kwargs...) where {T <: AbstractFloat, NP}
@@ -30,7 +38,7 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram) where {T <: AbstractF
     bin_centers::Vector{T} = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
     counts::Vector{T} = h.weights[first_bin:last_bin]
     err::Vector{T} = sqrt.(counts) # Poisson distributed
-    err = [ w != 0 ? w : 1.  for w in err] 
+    err = [ w != 0 ? w : 1.  for w in err]
 
     lowerbounds = map(b->b.left,  fit.parameter_bounds)
     upperbounds = map(b->b.right, fit.parameter_bounds)
