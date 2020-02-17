@@ -29,6 +29,8 @@ mutable struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
     fitted_parameters::AbstractVector{T}
     initial_parameters::AbstractVector{T}
     parameter_bounds::AbstractVector{<:Interval}
+    residuals::Vector{T}
+    Χ²::T
     backend_result::Any
 
     function FitFunction{T}(model::Function, ndims::Int, nparams::Int) where {T <: AbstractFloat}
@@ -37,7 +39,7 @@ mutable struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
         fitted_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
         initial_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
         parameter_bounds = [ T(nextfloat(typemin(T))/2)..T(prevfloat(typemax(T))/2) for ipar in 1:nparams]
-        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters, parameter_bounds, missing)
+        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters, parameter_bounds, T[], T(NaN), missing)
     end
 end
 
@@ -129,6 +131,28 @@ function show(io::IO, ::MIME"text/plain", f::FitFunction)
 end
 function show(io::IO, ::MIME"text/html", f::FitFunction)
     println(io, f)
+end
+
+function _get_Χ²(values_from_fit::Array{T,1}, residuals_sq::Array{T,1})::T where T <: Real
+    x::T = 0.0
+    for i in 1:length(residuals_sq)
+        x += residuals_sq[i] / values_from_fit[i]
+    end
+    x / length(residuals_sq)
+end
+
+function _set_Χ²!(f::FitFunction, xdata::Vector{T}, residuals::Vector{T})::Nothing where T <: Real
+    f.Χ² = _get_Χ²(T.(f.model(xdata, f.fitted_parameters)), residuals .* residuals)
+    nothing
+end
+
+function _get_residuals(f::FitFunction, xdata::Vector{T}, ydata::Vector{T})::Vector{T} where T <: Real
+    return f.model(xdata, f.fitted_parameters) .-ydata
+end
+
+function _set_residuals!(f::FitFunction, xdata::Vector{T}, ydata::Vector{T})::Nothing where T <: Real
+    f.residuals = _get_residuals(f, xdata, ydata)
+    nothing
 end
 
 get_standard_deviations(f::FitFunction) = _get_standard_deviations(f, f.backend_result)
