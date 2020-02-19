@@ -1,5 +1,6 @@
 function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T}; weights::Vector{T} = ones(T, length(xdata)), force_fit =false, kwargs...) where {T <: AbstractFloat, NP}
     fit.fitranges == ([-Inf, Inf],) ? set_fitranges!(fit, ((xdata[1], xdata[end]), )) : nothing
+    weights = map(x-> isnan(x) || isinf(x) ? 1.0 : x, weights)
     if fit.model == RadiationSpectra.Linear && force_fit == false
         @info("Using Linear Regression instead of LsqFit.")
         linear_regression!(fit, xdata, ydata, weights = weights, kwargs...)
@@ -7,8 +8,8 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T};
         f = curve_fit(fit.model, xdata, ydata, weights, fit.initial_parameters; kwargs...)
         set_fit_backend_result!(fit, f)
         _set_fitted_parameters!(fit, f.param)
-        _set_residuals!(fit, xdata, ydata)
-        _set_Χ²!(fit, xdata, f.resid)
+        _set_residuals!(fit, fit.backend_result.resid)
+        _set_Χ²!(fit, weights)
         fit
     end
 end

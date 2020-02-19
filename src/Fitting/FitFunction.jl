@@ -133,16 +133,18 @@ function show(io::IO, ::MIME"text/html", f::FitFunction)
     println(io, f)
 end
 
-function _get_Χ²(values_from_fit::Array{T,1}, residuals_sq::Array{T,1})::T where T <: Real
+function _get_Χ²(residuals::Array{T,1}, inv_σi²::Array{T,1}, dof::Int64)::T where T <: Real
     x::T = 0.0
+    residuals_sq = residuals .* residuals
     for i in 1:length(residuals_sq)
-        x += residuals_sq[i] / values_from_fit[i]
+        val = residuals_sq[i] * inv_σi²[i]
+        (!isnan(val) && !isinf(val)) ? x += val : x+= residuals_sq[i]
     end
-    x / length(residuals_sq)
+    x / dof
 end
 
-function _set_Χ²!(f::FitFunction, xdata::Vector{T}, residuals::Vector{T})::Nothing where T <: Real
-    f.Χ² = _get_Χ²(T.(f.model(xdata, f.fitted_parameters)), residuals .* residuals)
+function _set_Χ²!(f::FitFunction, weights::Vector{T})::Nothing where T <: Real
+    f.Χ² = _get_Χ²(f.residuals, weights, length(weights) - length(f.fitted_parameters)) # weights are 1/(σ_i)^2
     nothing
 end
 
@@ -152,6 +154,11 @@ end
 
 function _set_residuals!(f::FitFunction, xdata::Vector{T}, ydata::Vector{T})::Nothing where T <: Real
     f.residuals = _get_residuals(f, xdata, ydata)
+    nothing
+end
+
+function _set_residuals!(f::FitFunction, residuals::Vector{T})::Nothing where T <: Real
+    f.residuals = residuals
     nothing
 end
 

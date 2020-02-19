@@ -37,6 +37,6 @@ function linear_regression!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata:
     param = linear_regression(xdata, ydata)
     _set_fitted_parameters!(fit, param)
     _set_residuals!(fit, xdata, ydata)
-    _set_Χ²!(fit, xdata, fit.residuals)
+    _set_Χ²!(fit, weigths)
     fit
 end
