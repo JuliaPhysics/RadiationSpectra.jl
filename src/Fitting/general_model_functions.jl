@@ -31,6 +31,14 @@ function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusLinearBackground
     return ff
 end
 
+function FitFunction(T::Type{<:AbstractFloat}, s::Val{:Cauchy})
+    ff = FitFunction{T}( Cauchy, 1, 3 )
+    set_parameter_names!(ff, ["scale", "σ", "μ"])
+    set_initial_parameters!(ff, [1, 1, 0])
+    set_fitranges!(ff, ([-1, 1],))
+    return ff
+end
+
 function FitFunction(T::Type{<:AbstractFloat}, s::Val{:Linear})
     ff = FitFunction{T}( Linear, 1, 2 )
     set_parameter_names!(ff, ["offset", "slope"])
@@ -52,6 +60,12 @@ function get_inf(x::T) where {T <: Real}
 end
 function get_inf(x)
     return get_inf.(x)
+end
+function Cauchy(x, p)
+    scale = p[1]
+    σ = p[2]
+    μ  = p[3]
+    return @fastmath @. scale * σ / (π * (σ^2 + (x - μ)^2))
 end
 
 function Linear(x, p)
