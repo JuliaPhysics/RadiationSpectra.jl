@@ -149,7 +149,7 @@ function _set_Χ²!(f::FitFunction, weights::Vector{T})::Nothing where T <: Real
 end
 
 function _get_residuals(f::FitFunction, xdata::Vector{T}, ydata::Vector{T})::Vector{T} where T <: Real
-    return f.model(xdata, f.fitted_parameters) .-ydata
+    return f.model(xdata, f.fitted_parameters) .- ydata
 end
 
 function _set_residuals!(f::FitFunction, xdata::Vector{T}, ydata::Vector{T})::Nothing where T <: Real
