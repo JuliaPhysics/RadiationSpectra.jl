@@ -63,11 +63,11 @@ include("PeakFinder/PeakFinder.jl")
 include("Fitting/FitFunction.jl")
 include("Fitting/general_model_functions.jl")
 
-include("Fitting/linear_regression.jl")
-
 include("Fitting/llhfit.jl")
 
 include("Fitting/lsqfit.jl")
+
+include("Fitting/predefined_fit_routines.jl")
 
 include("AutoCalibration/AutoCalibration.jl")
 
