@@ -40,7 +40,7 @@ The type, a model function, the dimensionalty of the the model and the number of
 fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters 
 set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
 p0 = (
-    A = strongest_peak_bin_amplitude * strongest_peak_bin_width * 4,
+    A = strongest_peak_bin_amplitude * 4,
     σ = strongest_peak_bin_width * 2,
     μ = peakpos[1],
     offset = 0
@@ -54,8 +54,8 @@ fitfunc
 RadiationSpectra.llhfit!(fitfunc, h_uncal)
 
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
-plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
-plot!(fitfunc, lc=:red, label="LLH Fit", fmt=:svg)
+plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
+plot!(fitfunc, h_uncal, lc=:red, label="LLH Fit", fmt=:svg)
 ```
 
 ```@example fitting_hist
@@ -72,8 +72,8 @@ Then,
 RadiationSpectra.lsqfit!(fitfunc, h_uncal)
 
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
-plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
-plot!(fitfunc, lc=:red, label="LSQ Fit", fmt=:svg)
+plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
+plot!(fitfunc, h_uncal, lc=:red, label="LSQ Fit", fmt=:svg)
 ```
 
 ```@example fitting_hist
