@@ -1,10 +1,11 @@
 # This file is a part of RadiationSpectra.jl, licensed under the MIT License (MIT).
+using Test
+
 ENV["JULIA_DEBUG"] = "BAT"
 using BAT
 using RadiationSpectra
 using IntervalSets
 
-using Test
 @testset "Package RadiationSpectra" begin
     T = Float64
 

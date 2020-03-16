@@ -40,10 +40,6 @@ function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {
             expected_counts = T(Inf)
         end
         log_likelihood += log_pdf_poisson(expected_counts, l.weights[i], l.logabsgamma[i])
-        # if l.midpoints[i] > 3400
-        #     @show expected_counts, log_likelihood
-        #     @show l.weights[i], l.logabsgamma[i]
-        # end
         if isnan(log_likelihood)
             println(pars)
             println(l.f.model(l.midpoints[i], pars))
@@ -52,11 +48,6 @@ function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {
     end
     return log_likelihood
 end
-
-# function FitFunction{T}(model::Function, ndims::Int, prior::BAT.DistributionDensity) where {T <: AbstractFloat}
-#     ff = FitFunction{T}(model, ndims, totalndof(prior))
-#     return ff
-# end
 
 
 mutable struct BATResult{B, P} 
@@ -181,10 +172,6 @@ function rs_read(fn::AbstractString)
     return BATResult((result = bat_samples,), prior)
 end
 
-    #     bat_samples = globalparshape.(BAT.bat_read(global_fit_file))
-    # end
-    # RadiationSpectra.set_fit_backend_result!(global_verBoundary_fitfunction, 
-    #     (BATResult((result = bat_samples,)),))
 
 get_fit_backend_result(fr::Tuple) = fr
 
