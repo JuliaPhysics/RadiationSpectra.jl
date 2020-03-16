@@ -6,23 +6,25 @@ module RadiationSpectra
 
 using DelimitedFiles
 using LinearAlgebra
+using Serialization
 using Statistics
 
 using ArraysOfArrays
 using Distributions
+using ForwardDiff
 using IntervalSets
+using LinearAlgebra
 using LsqFit
+using NLSolversBase
 using Optim
 using RecipesBase
 using Requires
 using SpecialFunctions
 using StatsBase
-using ValueShapes
-using NLSolversBase
-using ForwardDiff
-using LinearAlgebra
 using Tables
 using TypedTables
+using ValueShapes
+using Random123
 
 import Base: print, println, show
 import Statistics: mean
