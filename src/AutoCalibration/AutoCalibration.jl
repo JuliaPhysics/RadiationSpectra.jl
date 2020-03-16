@@ -111,11 +111,13 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
         fitrange = fitrange ./ c_pre
         first_bin = StatsBase.binindex(h, fitrange[1])
         last_bin  = StatsBase.binindex(h, fitrange[2])
-        p0_sigma = 1 / c_pre 
-        p0_scale = (maximum(h.weights[first_bin:last_bin]) - (h.weights[first_bin] + h.weights[last_bin]) / 2) * 2 * p0_sigma
-        p0_mean = line / c_pre
-        p0_bg_offset = (h.weights[first_bin] + h.weights[last_bin]) / 2
-        p0_bg_slope = (h.weights[last_bin] - h.weights[first_bin]) / (fitrange[2] - fitrange[1])
+        weights = h.weights[first_bin:last_bin]
+        bin_centers = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
+        bin_widhts = map(i -> StatsBase.binvolume(h, i), first_bin:last_bin)
+        p0_mean, p0_sigma = mean_and_std(bin_centers, FrequencyWeights(weights), corrected=true)
+        p0_scale = sum(h.weights[StatsBase.binindex(h, p0_mean-p0_sigma):StatsBase.binindex(h, p0_mean+p0_sigma)]) / 0.68
+        p0_bg_offset = (weights[1]/bin_widhts[1] + weights[end]/bin_widhts[end]) / 2
+        p0_bg_slope = (weights[1]/bin_widhts[1] - weights[end]/bin_widhts[end]) / (fitrange[2] - fitrange[1])
 
         fit = FitFunction( :GaussPlusLinearBackground )
         set_fitranges!(fit, (fitrange,))
