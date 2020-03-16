@@ -7,7 +7,6 @@
 using Documenter
 using Plots
 pyplot(fmt=:svg)
-using BAT
 using RadiationSpectra
 
 makedocs(
