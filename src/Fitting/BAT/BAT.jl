@@ -40,6 +40,15 @@ function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {
             expected_counts = T(Inf)
         end
         log_likelihood += log_pdf_poisson(expected_counts, l.weights[i], l.logabsgamma[i])
+        # if l.midpoints[i] > 3400
+        #     @show expected_counts, log_likelihood
+        #     @show l.weights[i], l.logabsgamma[i]
+        # end
+        if isnan(log_likelihood)
+            println(pars)
+            println(l.f.model(l.midpoints[i], pars))
+            error("..")
+        end
     end
     return log_likelihood
 end
@@ -50,19 +59,23 @@ end
 # end
 
 
-mutable struct BATResult{B} 
+mutable struct BATResult{B, P} 
     bat_result::B
+    prior::P
 
-    BATResult(b::B) where B = new{B}(b)
+    BATResult(b::B) where B = new{B, Missing}(b, missing)
+    BATResult(b::B, p::P) where {B, P} = new{B, P}(b, p)
 end
 
 
 function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
+                rng_seed = Philox4x((123, 456)),
                 prior = missing,
                 nsamples::Int = 10^5, 
                 nchains::Int = 4, 
                 pretunesamples::Int = length(f.parameter_bounds) * 1000, 
                 max_ncycles::Int = 30, 
+                tuning_r = 0.5,
                 BGConvergenceThreshold::Real = sqrt(length(f.parameter_bounds))) where {T, ND, NP}
     first_bin = !isinf(first(f.fitranges[1])) ? StatsBase.binindex(h, first(f.fitranges[1])) : 1
     last_bin  = !isinf(last( f.fitranges[1])) ? StatsBase.binindex(h, last( f.fitranges[1])) : length(h.weights)
@@ -87,7 +100,7 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
     algorithm = BAT.MetropolisHastings()
 
     tuning = BAT.AdaptiveMetropolisTuning(
-        r = 0.5,
+        r = tuning_r,
         λ = 0.5,
         α = 0.15..0.35,
         β = 1.5,
@@ -113,7 +126,7 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         max_ncycles = max_ncycles
     )
 
-    bat_result = BATResult(BAT.bat_sample(
+    bat_result = BATResult(BAT.bat_sample( rng_seed,
         posterior, (nsamples, nchains), algorithm,
         max_nsteps = 10 * nsamples,
         max_time = Inf,
@@ -122,21 +135,62 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         burnin = burnin,
         convergence = convergence,
         strict = false,
-        filter = true
-    ))
+        filter = true),
+        prior
+    )
 
-    # mode = BAT.mode(samples.result)
-    # _set_fitted_parameters!(f, mode[])
     f.backend_result = (bat_result, )
+    try 
+        _set_fitted_parameters!(f, mode(RadiationSpectra.get_bat_result(f))[])
+    catch err
+        @warn "Determination of mode failed"
+    end
     f
 end
 
 ### Utilties
 
+function rs_write(fn::AbstractString, b::BATResult)
+    BAT.bat_write(fn, unshape(b))   
+    ser_bfn = begin
+        bn = basename(fn)
+        if occursin(".", bn)
+            bn[1:first(findlast(".", bn))-1] * ".ser"
+        else
+            bn * ".ser"
+        end
+    end
+    ser_fn = joinpath(dirname(fn), ser_bfn)
+    serialize(ser_fn, b.prior)
+    nothing
+end
+function rs_read(fn::AbstractString)
+    ser_bfn = begin
+        bn = basename(fn)
+        if occursin(".", bn)
+            bn[1:first(findlast(".", bn))-1] * ".ser"
+        else
+            bn * ".ser"
+        end
+    end
+    ser_fn = joinpath(dirname(fn), ser_bfn)
+    if !isfile(ser_fn) error("Prior was not serialized to file.") end
+    prior = deserialize(ser_fn)
+    s = varshape(prior)
+    bat_samples = s.(BAT.bat_read(fn))
+    return BATResult((result = bat_samples,), prior)
+end
+
+    #     bat_samples = globalparshape.(BAT.bat_read(global_fit_file))
+    # end
+    # RadiationSpectra.set_fit_backend_result!(global_verBoundary_fitfunction, 
+    #     (BATResult((result = bat_samples,)),))
+
 get_fit_backend_result(fr::Tuple) = fr
 
 get_bat_result(ff::FitFunction)::BAT.DensitySampleVector = 
     get_fit_backend_result(ff.backend_result)[1].bat_result.result
+
 
 function BAT.NamedTupleShape(f::FitFunction)
     ts = Tuple(map(b -> ScalarShape{Real}(), f.parameter_names))
@@ -174,6 +228,8 @@ end
 
 unshape(samples::BAT.DensitySampleVector) =
     samples.v isa ShapedAsNTArray ? ValueShapes.unshaped.(samples) : samples
+unshape(b::BATResult) =
+    unshape(b.bat_result[1])
 
 
 function get_marginalized_pdf(samples::BAT.DensitySampleVector, pars::NTuple{N, Int}; nbins = 100, sample_range::AbstractVector{Int} = Int[]) where {N}
@@ -185,7 +241,7 @@ function get_marginalized_pdf(samples::BAT.DensitySampleVector, pars::NTuple{N, 
 end
 
 get_marginalized_pdf(br::BATResult, args...; kwargs...) =
-    get_marginalized_pdf(br.bat_result, args...; kwargs...)
+    get_marginalized_pdf(br.bat_result.result, args...; kwargs...)
 
 get_marginalized_pdf(f::FitFunction, args...; nbins = 100, sample_range::AbstractVector{Int} = Int[]) =
     get_marginalized_pdf(get_bat_result(f), args..., nbins = nbins, sample_range = sample_range)
@@ -225,9 +281,21 @@ function central_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = B
     end
     return r
 end
+function smallest_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = BAT.standard_confidence_vals)
+    sort!(intervals)
+    splitted_histograms = reverse(BAT.split_smallest(marginalized_pdf, intervals)[1])
+    r = Interval[]
+    for ipar in 1:length(intervals)
+        ifirst = findfirst(w -> w > 0, splitted_histograms[ipar].weights)
+        ilast  = findlast( w -> w > 0, splitted_histograms[ipar].weights)
+        int = splitted_histograms[ipar].edges[1][ifirst]..splitted_histograms[ipar].edges[1][ilast+1]
+        push!(r, int)
+    end
+    return r
+end
 
 @userplot Plot_Marginalized_PDF
-@recipe function f(h::Plot_Marginalized_PDF)
+@recipe function f(h::Plot_Marginalized_PDF; interval_type = :smallest)
     if (length(h.args) < 1) || !(typeof(h.args[1]) <: Histogram{<:Real, 1}) 
         error("Wrong arguments. Got: $(typeof(h.args))")
     end
@@ -240,10 +308,16 @@ end
         hmpdf
     end
 
-    h_ints = reverse(BAT.split_central(hmpdf, BAT.standard_confidence_vals)[1])
+    h_ints = if interval_type == :smallest
+        reverse(BAT.split_smallest(hmpdf, BAT.standard_confidence_vals)[1])
+    elseif interval_type == :central
+        reverse(BAT.split_central(hmpdf, BAT.standard_confidence_vals)[1])
+    else
+        error("`interval_type` must be either `:smallest` or `:central`")
+    end
     for i in length(intervals):-1:1
         @series begin
-            label := "CI: $(BAT.standard_confidence_vals[i])"
+            label := """$((interval_type == :smallest ? "SI" : "CI")): $(BAT.standard_confidence_vals[i])"""
             fillcolor := BAT.standard_colors[i] 
             h_ints[i]
         end
