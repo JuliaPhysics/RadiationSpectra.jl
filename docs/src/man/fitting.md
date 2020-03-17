@@ -8,7 +8,6 @@ Pages = ["fitting.md"]
 
 1. Get a spectrum and find a peak to fit
 ```@example fitting_hist
-using BAT # hide
 using Plots, RadiationSpectra, StatsBase
 myfont = Plots.font(12) # hide
 pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
