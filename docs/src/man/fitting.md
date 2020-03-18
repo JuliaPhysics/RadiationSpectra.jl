@@ -8,7 +8,6 @@ Pages = ["fitting.md"]
 
 1. Get a spectrum and find a peak to fit
 ```@example fitting_hist
-using BAT # hide
 using Plots, RadiationSpectra, StatsBase
 myfont = Plots.font(12) # hide
 pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
@@ -40,7 +39,7 @@ The type, a model function, the dimensionalty of the the model and the number of
 fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters 
 set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
 p0 = (
-    A = strongest_peak_bin_amplitude * strongest_peak_bin_width * 4,
+    A = strongest_peak_bin_amplitude * 4,
     σ = strongest_peak_bin_width * 2,
     μ = peakpos[1],
     offset = 0
@@ -54,8 +53,8 @@ fitfunc
 RadiationSpectra.llhfit!(fitfunc, h_uncal)
 
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
-plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
-plot!(fitfunc, lc=:red, label="LLH Fit", fmt=:svg)
+plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
+plot!(fitfunc, h_uncal, lc=:red, label="LLH Fit", fmt=:svg)
 ```
 
 ```@example fitting_hist
@@ -72,44 +71,14 @@ Then,
 RadiationSpectra.lsqfit!(fitfunc, h_uncal)
 
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
-plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
-plot!(fitfunc, lc=:red, label="LSQ Fit", fmt=:svg)
+plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
+plot!(fitfunc, h_uncal, lc=:red, label="LSQ Fit", fmt=:svg)
 ```
 
 ```@example fitting_hist
 fitfunc # hide
 ```
 
-## Bayesian Fit - BAT.jl 
-
-This package can also perform a bayesian fit, via the `Bayesian Analysis Toolkit` - [BAT.jl](https://github.com/bat/BAT.jl) package,
-to histograms. BAT.jl is used via Require.jl. Thus, in order to use the bayesian fit, one has to load BAT.jl before loading RadiationSpectra.jl
-and one has to define parameter bounds.
-
-```@example fitting_hist
-using BAT
-using RadiationSpectra
-using IntervalSets
-set_parameter_bounds!(fitfunc, [0..sum(h_uncal.weights), 0..1000, 0.9*peakpos[1]..1.1*peakpos[1], 0..500])
-```
-
-Then, one can perform bayesian fit via
-```@example fitting_hist
-RadiationSpectra.batfit!(fitfunc, h_uncal)
-```
-
-One can also get the marginalized posterior distribution for each parameter via
-```@example fitting_hist
-pars = fitfunc.fitted_parameters
-h_mpdf = RadiationSpectra.get_marginalized_pdf(fitfunc, 3)
-```
-
-and there is a user plot recipe for marginalized probability histograms defined:
-```@example fitting_hist
-plot_marginalized_pdf(h_mpdf)
-xlims!(pars[3]-5, pars[3]+5)
-xticks!([pars[3]-4, pars[3], pars[3]+4])
-```
 
 ## LSQ Fit - 1D-Data Arrays
 

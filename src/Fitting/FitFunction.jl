@@ -166,10 +166,15 @@ get_standard_deviations(f::FitFunction) = _get_standard_deviations(f, f.backend_
 
 _get_standard_deviations(f::FitFunction, fr::Missing) = error("No fit performed yet.")
 
-@recipe function f(ff::FitFunction; npoints = 501, use_initial_parameters = false, bin_width = 1.0)
+@recipe function f(ff::FitFunction{T}, h::Union{Missing, Histogram} = missing; npoints = 501, use_initial_parameters = false) where {T}
     x = collect(range(ff.fitranges[1][1], stop=ff.fitranges[1][2], length=npoints))
     par = use_initial_parameters ? ff.initial_parameters : ff.fitted_parameters
-    y = bin_width .* (ff.model(x, collect(par)))
+    y = if ismissing(h) 
+        ff.model(x, collect(par))
+    else
+        bin_width_weights::Vector{T} = map(xe -> StatsBase.binvolume(h, StatsBase.binindex(h, xe)), x)
+        ff.model(x, collect(par)) .* bin_width_weights
+    end
     linecolor --> (use_initial_parameters ? :green : :red)
     label --> (use_initial_parameters ? "Fit model with initial parameters" : "Fit model with fitted parameters")
     x,y

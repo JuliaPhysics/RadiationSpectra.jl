@@ -25,8 +25,15 @@ function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusConstantBackgrou
 end
 function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusLinearBackground})
     ff = FitFunction{T}( Gauss_plus_linear_background, 1, 5 )
-    set_parameter_names!(ff, ["A", "σ", "μ", "offset", "lin. slope"])
+    set_parameter_names!(ff, ["A", "σ", "μ", "offset", "linear_slope"])
     set_initial_parameters!(ff, [1, 1, 0, 1, 0])
+    set_fitranges!(ff, ([-1, 1],))
+    return ff
+end
+function FitFunction(T::Type{<:AbstractFloat}, s::Val{:GaussPlusLinearBackgroundPlusConstBackground})
+    ff = FitFunction{T}( Gauss_plus_linear_background_plus_const_background, 1, 6 )
+    set_parameter_names!(ff, ["A", "σ", "μ", "offset", "linear_slope", "const_background"])
+    set_initial_parameters!(ff, Float64[1, 1, 0, 1, 0, nextfloat(0.0)])
     set_fitranges!(ff, ([-1, 1],))
     return ff
 end
@@ -93,8 +100,19 @@ function Gauss_plus_linear_background(x, p)
     μ = p[3]
     offset = p[4]
     lin_slope = p[5]
-    if σ <= 0 || A < 0 || offset < 0 return get_inf(x) end
-    return min_0(@fastmath @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + lin_slope * (x - μ) + offset)
+    if σ <= 0 || A < 0 return get_inf(x) end
+    return @fastmath @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + min_0(lin_slope * (x - μ)) + offset
+end
+
+function Gauss_plus_linear_background_plus_const_background(x, p)
+    A = p[1]
+    σ = p[2]
+    μ = p[3]
+    offset = p[4]
+    lin_slope = p[5]
+    const_background = p[6]
+    if σ <= 0 || A < 0 return get_inf(x) end
+    return @. min_0(@fastmath @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + lin_slope * (x - μ) + offset) + const_background
 end
 
 function Gauss_plus_const_background(x, p)
@@ -102,6 +120,6 @@ function Gauss_plus_const_background(x, p)
     σ = p[2]
     μ = p[3]
     offset = p[4]
-    if σ <= 0 || A < 0 || offset < 0 return get_inf(x) end
+    if σ <= 0 || A < 0 return get_inf(x) end
     return min_0(@fastmath @. A * exp( -(x - μ)^2 / (2 * σ^2)) / sqrt(2π * σ^2) + offset)
 end

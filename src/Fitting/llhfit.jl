@@ -6,14 +6,14 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
     bin_centers::Vector{T} = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
     bin_widths::Vector{T} = [StatsBase.binvolume(h, StatsBase.binindex(h, mp)) for mp in bin_centers]
     counts::Vector{T} = h.weights[first_bin:last_bin]
-
+    
     function log_likelihood(params)
         s = 0
         if in(0, in.(params, fit.parameter_bounds))
             return Inf
         end
         @inbounds for i in eachindex(counts)
-            expected_counts = fit.model(bin_centers[i], params)
+            expected_counts = fit.model(bin_centers[i], params) * bin_widths[i]
             if isnan(expected_counts) || expected_counts < 0 
                 expected_counts = T(Inf)
             end

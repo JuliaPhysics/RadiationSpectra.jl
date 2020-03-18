@@ -32,7 +32,7 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram; weights::Union{Missin
     if first_bin < 1 first_bin = 1 end
     if (last_bin > length(h.weights)) last_bin = length(h.weights) end
     bin_centers::Vector{T} = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
-    counts::Vector{T} = h.weights[first_bin:last_bin]
+    counts::Vector{T} = h.weights[first_bin:last_bin] ./ map(i -> StatsBase.binvolume(h, i), first_bin:last_bin)
     err::Vector{T} = ismissing(weights) ? sqrt.(counts) : weights[first_bin:last_bin] # Assume Poisson statistics if no weights are provided
     err = [ w != 0 ? w : 1.  for w in err]
 
