@@ -23,7 +23,7 @@ function fit_single_peak_histogram_w_cauchy(h::StatsBase.Histogram, hist_data::U
 end
 
 function fit_single_peak_histogram_refined(h::StatsBase.Histogram, hist_data::Union{Vector{T}, Missing} = missing; fit_function::Symbol = :Gauss, weights = missing ) where T<:Real
-    @assert fit_function in [:Gauss,:Cauchy] "Please specify either :Gauss or :Cauchy. Initial Parameter Estimation is attempted for you."
+    @assert fit_function in [:Gauss, :Gauss_pol1, :Cauchy] "Please specify either :Gauss or :Cauchy. Initial Parameter Estimation is attempted for you."
     bins = collect(h.edges[1])[1:end-1]
     max = maximum( h.weights)
     binsize = bins[2]-bins[1]
@@ -31,8 +31,13 @@ function fit_single_peak_histogram_refined(h::StatsBase.Histogram, hist_data::Un
     mymean = bins[findfirst(x->x==maximum(h.weights), h.weights)]
     sigma = ismissing(hist_data) ? 3 * binsize : stdm(filter(x-> isapprox(x, mymean, atol = sqrt(abs(mymean))), hist_data), mymean)
     ampl = max / abs(sigma)
-    p0 = [ampl, sigma, mymean]
-    fit_obj = FitFunction(fit_function)
+    p0, fit_obj = if fit_function in [:Gauss, :Cauchy]
+        [ampl, sigma, mymean], FitFunction(fit_function)
+    elseif fit_function in [:Gauss_pol1]
+        slope = 0.0
+        offset = (sum(h.weights) - sigma * maximum(h.weights)) / length(h.weights)
+        [ampl, sigma, mymean, offset, slope], FitFunction(:GaussPlusLinearBackground)
+    end
     set_fitranges!(fit_obj,([bins[1], bins[end]],))
     set_initial_parameters!(fit_obj, p0)
     lsqfit!(fit_obj, h)
