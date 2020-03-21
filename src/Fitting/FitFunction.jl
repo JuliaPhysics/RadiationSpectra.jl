@@ -29,6 +29,8 @@ mutable struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
     fitted_parameters::AbstractVector{T}
     initial_parameters::AbstractVector{T}
     parameter_bounds::AbstractVector{<:Interval}
+    bin_widths::Vector{T}
+    bin_centers::Vector{T}
     residuals::Vector{T}
     Χ²::T
     backend_result::Any
@@ -39,7 +41,7 @@ mutable struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
         fitted_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
         initial_parameters::Vector{T} = [ T(NaN) for ipar in 1:nparams]
         parameter_bounds = [ T(nextfloat(typemin(T))/2)..T(prevfloat(typemax(T))/2) for ipar in 1:nparams]
-        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters, parameter_bounds, T[], T(NaN), missing)
+        return new{T, ndims, nparams}(model, fitranges, parameter_names, fitted_parameters, initial_parameters, parameter_bounds, T[], T[], T[], T(NaN), missing)
     end
 end
 
@@ -50,7 +52,7 @@ get_pricision_type(ff::AbstractFitFunction{T}) where {T <: AbstractFloat} = T
 function get_fit_backend_result(f::AbstractFitFunction)
     return get_fit_backend_result(f.backend_result)
 end
-function set_fit_backend_result!(f::AbstractFitFunction, r)
+function _set_fit_backend_result!(f::AbstractFitFunction, r)
     f.backend_result = r
     nothing
 end
@@ -133,6 +135,16 @@ function show(io::IO, ::MIME"text/html", f::FitFunction)
     println(io, f)
 end
 
+function _set_bin_widths!(f::FitFunction, bin_widths::Vector{T})::Nothing where T <: Real
+    f.bin_widths = bin_widths
+    nothing
+end
+
+function _set_bin_centers!(f::FitFunction, bin_centers::Vector{T})::Nothing where T <: Real
+    f.bin_centers = bin_centers
+    nothing
+end
+
 function _get_Χ²(residuals::Array{T,1}, inv_σi²::Array{T,1}, dof::Int64)::T where T <: Real
     x::T = 0.0
     residuals_sq = residuals .* residuals
@@ -149,16 +161,11 @@ function _set_Χ²!(f::FitFunction, weights::Vector{T})::Nothing where T <: Real
 end
 
 function _get_residuals(f::FitFunction, xdata::Vector{T}, ydata::Vector{T})::Vector{T} where T <: Real
-    return f.model(xdata, f.fitted_parameters) .- ydata
+    return  (f.model(xdata, f.fitted_parameters) .* (isempty(f.bin_widths) ? 1.0 : f.bin_widths) .- ydata)
 end
 
 function _set_residuals!(f::FitFunction, xdata::Vector{T}, ydata::Vector{T})::Nothing where T <: Real
     f.residuals = _get_residuals(f, xdata, ydata)
-    nothing
-end
-
-function _set_residuals!(f::FitFunction, residuals::Vector{T})::Nothing where T <: Real
-    f.residuals = residuals
     nothing
 end
 
@@ -169,8 +176,10 @@ _get_standard_deviations(f::FitFunction, fr::Missing) = error("No fit performed 
 @recipe function f(ff::FitFunction{T}, h::Union{Missing, Histogram} = missing; npoints = 501, use_initial_parameters = false) where {T}
     x = collect(range(ff.fitranges[1][1], stop=ff.fitranges[1][2], length=npoints))
     par = use_initial_parameters ? ff.initial_parameters : ff.fitted_parameters
-    y = if ismissing(h) 
+    y = if ismissing(h) && isempty(ff.bin_widths)
         ff.model(x, collect(par))
+    elseif ismissing(h)
+        ff.model(x, collect(par)) .*  map(xe -> ff.bin_widths[findmin(abs.(ff.bin_centers .- xe))[2]], x)
     else
         bin_width_weights::Vector{T} = map(xe -> StatsBase.binvolume(h, StatsBase.binindex(h, xe)), x)
         ff.model(x, collect(par)) .* bin_width_weights
