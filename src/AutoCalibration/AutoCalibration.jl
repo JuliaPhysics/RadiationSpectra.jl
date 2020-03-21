@@ -116,19 +116,7 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
             @warn("$pl keV line not sufficiently contained in Histogram, skipping...");
             continue
         end
-        weights = h.weights[first_bin:last_bin]
-        bin_centers = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
-        bin_widths = map(i -> StatsBase.binvolume(h, i), first_bin:last_bin)
-        p0_mean, p0_sigma = mean_and_std(bin_centers, FrequencyWeights(weights), corrected=true)
-        p0_scale = sum(h.weights[StatsBase.binindex(h, p0_mean-p0_sigma):StatsBase.binindex(h, p0_mean+p0_sigma)]) / 0.68
-        p0_bg_offset = (weights[1]/bin_widths[1] + weights[end]/bin_widths[end]) / 2
-        p0_bg_slope = (weights[1]/bin_widths[1] - weights[end]/bin_widths[end]) / (fitrange[2] - fitrange[1])
-
-        fit = FitFunction( :GaussPlusLinearBackground )
-        set_fitranges!(fit, (fitrange,))
-        set_initial_parameters!(fit, [p0_scale, p0_sigma, p0_mean, p0_bg_offset, p0_bg_slope ] )
-
-        lsqfit!(fit, h)
+        fit = fit_single_peak_histogram(h, fitrange, fit_function = :Gauss_pol1)
         push!(peak_fits, fit)
         push!(processed_photon_lines, pl)
     end
