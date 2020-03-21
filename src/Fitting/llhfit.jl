@@ -6,7 +6,7 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
     bin_centers::Vector{T} = StatsBase.midpoints(h.edges[1])[first_bin:last_bin]
     bin_widths::Vector{T} = [StatsBase.binvolume(h, StatsBase.binindex(h, mp)) for mp in bin_centers]
     counts::Vector{T} = h.weights[first_bin:last_bin]
-    
+
     function log_likelihood(params)
         s = 0
         if in(0, in.(params, fit.parameter_bounds))
@@ -14,7 +14,7 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
         end
         @inbounds for i in eachindex(counts)
             expected_counts = fit.model(bin_centers[i], params) * bin_widths[i]
-            if isnan(expected_counts) || expected_counts < 0 
+            if isnan(expected_counts) || expected_counts < 0
                 expected_counts = T(Inf)
             end
             s += -logpdf(Poisson(expected_counts), counts[i])
@@ -28,8 +28,8 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
     catch e
         zeros(T, length(fit.initial_parameters))
     end
-    
-    set_fit_backend_result!(fit, (optim_result, uncertainties))
+
+    _set_fit_backend_result!(fit, (optim_result, uncertainties))
     optim_result
 end
 
@@ -50,4 +50,4 @@ end
 
 get_fit_backend_result(fr::Tuple{<:Optim.MultivariateOptimizationResults,<:Any}) = fr[1]
 
-_get_standard_deviations(f::FitFunction, fr::Tuple{<:Optim.MultivariateOptimizationResults,<:Any}) = fr[2] 
+_get_standard_deviations(f::FitFunction, fr::Tuple{<:Optim.MultivariateOptimizationResults,<:Any}) = fr[2]
