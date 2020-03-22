@@ -19,7 +19,7 @@ strongest_peak_bin_idx = StatsBase.binindex(h_uncal, peakpos[1])
 strongest_peak_bin_width = StatsBase.binvolume(h_uncal, strongest_peak_bin_idx)
 strongest_peak_bin_amplitude = h_uncal.weights[strongest_peak_bin_idx]
 
-plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), ylims=[0, strongest_peak_bin_amplitude * 1.1], fmt =:svg) 
+plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), ylims=[0, strongest_peak_bin_amplitude * 1.1], fmt =:svg)
 ```
 
 2. Write a model function
@@ -29,14 +29,14 @@ function model(x, par)
     σ    = par[2]
     μ     = par[3]
     cp0   = par[4]
-    return @. scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0 
+    return @. scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0
 end
 ```
 
 1. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref).
 The type, a model function, the dimensionalty of the the model and the number of parameters must be specified:
 ```@example fitting_hist
-fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters 
+fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters
 set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
 p0 = (
     A = strongest_peak_bin_amplitude * 4,
@@ -54,6 +54,7 @@ RadiationSpectra.llhfit!(fitfunc, h_uncal)
 
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
 plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
+#plot!(fitfunc, h_uncal, lc=:red, label="LLH Fit\nΧ² = $(round(fitfunc.Chi2, digits=2))", fmt=:svg) #hide
 plot!(fitfunc, h_uncal, lc=:red, label="LLH Fit", fmt=:svg)
 ```
 
@@ -64,22 +65,37 @@ fitfunc # hide
 ## LSQ Fit - 1D-Histogram
 
 To perfrom a LSQ Fit on a spectrum repeat the first three steps from the [Likelihood (LLH) Fit - 1D-Histogram](@ref).
-Then, 
+Then,
 
-1. Performe the fit with the [`RadiationSpectra.lsqfit!`](@ref)-function and plot the result
+1. Perform the fit with the [`RadiationSpectra.lsqfit!`](@ref)-function and plot the result
 ```@example fitting_hist
 RadiationSpectra.lsqfit!(fitfunc, h_uncal)
 
 plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
 plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
+#plot!(fitfunc, h_uncal, lc=:red, label="LSQ Fit\nΧ² = $(round(fitfunc.Chi2, digits=2))", fmt=:svg) #hide
 plot!(fitfunc, h_uncal, lc=:red, label="LSQ Fit", fmt=:svg)
 ```
 
 ```@example fitting_hist
 fitfunc # hide
 ```
+## Easy Fitting for Histograms Containing a Single Peak
 
+There are predefined fit routines [`RadiationSpectra.fit_single_peak_histogram`](@ref), [`RadiationSpectra.fit_single_peak_histogram_refined`](@ref) that allow quick and easy fitting of standard distribution functions to histograms containing a single peak (for now supported `:Gauss`, `:Cauchy`, `:Gauss_pol1`, to be passed as keyword argument: `fit_function = ...`). Here, initial parameter guessing is attempted for you and you can obtain results in just one line.
+```@example fitting_hist
+subrange = (peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 10)
+plot(h_uncal, st=:step, xlims=subrange, size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1], lw=2)
 
+fitfunc = fit_single_peak_histogram(h_uncal, subrange, fit_function = :Gauss_pol1 )
+#plot!(fitfunc, label = "Fit Gaussian to the data", lw=3) #hide
+plot!(fitfunc, label = "Fit Gaussian to the data\nΧ² = $(round(fitfunc.Chi2, digits=2))", lw=3)
+
+fitfunc_refined = fit_single_peak_histogram_refined(h_uncal, subrange, fit_function = :Gauss_pol1, n_sig = 3 )
+# plot!(fitfunc_refined, label = "Fit Gaussian to the data\nrefined parameter guessing", fmt=:svg, line = (3, :dash, :orange)) #hide
+plot!(fitfunc_refined, label = "Fit Gaussian to the data\nrefined parameter guessing\nΧ² = $(round(fitfunc_refined.Chi2, digits=2))", fmt=:svg, line = (3, :dash, :orange))
+
+```
 ## LSQ Fit - 1D-Data Arrays
 
 * Write a model function
@@ -94,7 +110,7 @@ function model(x, par::Vector{T}) where {T}
 end
 ```
 
-* Create some random data 
+* Create some random data
 ```@example fitting_1D_data
 xdata = Float64[1, 2, 3, 6, 8, 12]
 ydata = Float64[model(x, [-0.2, 0.7]) + (rand() - 0.5) for x in xdata]
@@ -106,7 +122,7 @@ plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), 
 
 * Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref)
 ```@example fitting_1D_data
-fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 2 ); 
+fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 2 );
 set_fitranges!(fitfunc, ((xdata[1], xdata[end]),) )
 p0 = (
     offset = 0,
