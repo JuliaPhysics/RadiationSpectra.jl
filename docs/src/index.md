@@ -13,5 +13,3 @@ Pages = ["man/fitting.md"]
 ```@contents
 Pages = ["man/spectrum_calibration.md"]
 ```
-
-
