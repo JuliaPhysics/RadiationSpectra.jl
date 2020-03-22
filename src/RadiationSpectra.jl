@@ -47,6 +47,8 @@ export calibrate_spectrum
 
 export mean, std, mean_and_std
 
+export fit_single_peak_histogram
+export fit_single_peak_histogram_refined
 
 """
     get_example_spectrum()::Histogram
