@@ -71,31 +71,40 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
     return c
 end
 
+function _filter_peaks_from_peakfinder(h::Histogram{<:Real, 1}, peakPositions::Vector{T}, σ::Real) where {T <: Real}
+    pfits = []
+    for p in peakPositions
+        fitrange = (p - 5σ*step(h.edges[1]), p + 5σ*step(h.edges[1]))
+        fit = fit_single_peak_histogram(h, fitrange, fit_function = :Gauss_pol1)
+        push!(pfits, fit)
+    end
+    d = map(i -> abs(pfits[i].fitted_parameters[3] - peakPositions[i]), eachindex(peakPositions));
+    σs = map(i -> abs(pfits[i].fitted_parameters[2]), eachindex(peakPositions));   
+    hd = harmmean(d);
+    hσ = harmmean(σs);
+    accepted_peakPositions = T[]
+    for (ipf, pf) in enumerate(pfits)
+        if d[ipf] < 4 * hd && abs(pf.fitted_parameters[2]) < 2hσ
+            push!(accepted_peakPositions, pf.fitted_parameters[3])
+        end
+    end
+    accepted_peakPositions
+end
+
 
 function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1};
-            min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 4 * length(photon_lines), threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3) where {E}
+            min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 5 * length(photon_lines), threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3) where {E}
     h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
-    if length(peakPositions) > max_n_peaks
-        peakPositions = peakPositions[1:max_n_peaks]
+    fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
+    while length(fitted_peak_Positions) > max_n_peaks
+        threshold *= 1.1
+        h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
+        fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
     end
-    e_threshold = last(h.edges[1]) * 0.05
-    delete_peak_idcs = Int[]
-    for i in eachindex(peakPositions)
-        if peakPositions[i] < e_threshold
-            push!(delete_peak_idcs, i)
-        end
-    end
-    deleteat!(peakPositions, delete_peak_idcs)
-    while length(peakPositions) < min_n_peaks
+    while length(fitted_peak_Positions) < min_n_peaks
         threshold *= 0.75
         h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
-        delete_peak_idcs = Int[]
-        for i in eachindex(peakPositions)
-            if peakPositions[i] < e_threshold
-                push!(delete_peak_idcs, i)
-            end
-        end
-        deleteat!(peakPositions, delete_peak_idcs)
+        fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
     end
     c = determine_calibration_constant_through_peak_ratios(peakPositions, photon_lines, α = α, rtol = rtol)
     return c, h_deconv, peakPositions, threshold
