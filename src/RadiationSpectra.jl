@@ -40,13 +40,15 @@ export get_fitted_parameters
 export get_initial_parameters
 export get_standard_deviations
 
-export llhfit!, lsqfit!
+export llhfit!, lsqfit!, linear_regression!
 
 export peakfinder
 export calibrate_spectrum
 
 export mean, std, mean_and_std
 
+export fit_single_peak_histogram
+export fit_single_peak_histogram_refined
 
 """
     get_example_spectrum()::Histogram
@@ -70,6 +72,8 @@ include("Fitting/general_model_functions.jl")
 include("Fitting/llhfit.jl")
 
 include("Fitting/lsqfit.jl")
+
+include("Fitting/predefined_fit_routines.jl")
 
 include("AutoCalibration/AutoCalibration.jl")
 
