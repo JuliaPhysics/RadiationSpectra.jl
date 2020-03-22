@@ -1,6 +1,6 @@
 name = "RadiationSpectra"
 uuid = "4f207c7e-01da-51d7-a1a0-c8c06dd1d883"
-version = "0.2.0"
+version = "0.3.0"
 
 [deps]
 ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
