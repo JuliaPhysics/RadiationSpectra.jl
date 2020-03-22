@@ -45,6 +45,14 @@ mutable struct FitFunction{T, ND, NP} <: AbstractFitFunction{T, ND, NP}
     end
 end
 
+function Base.getproperty(f::FitFunction, s::Symbol)
+    if s === :Chi2 || s === :chi2
+        return f.Χ²
+    else
+        return getfield(f, s)
+    end
+end
+
 get_ndims(ff::AbstractFitFunction{T, ND}) where {T <: AbstractFloat, ND} = ND
 get_nparams(ff::AbstractFitFunction{T, ND, NP}) where {T <: AbstractFloat, ND, NP} = NP
 get_pricision_type(ff::AbstractFitFunction{T}) where {T <: AbstractFloat} = T
@@ -145,7 +153,7 @@ function _set_bin_centers!(f::FitFunction, bin_centers::Vector{T})::Nothing wher
     nothing
 end
 
-function _get_Χ²(residuals::Array{T,1}, inv_σi²::Array{T,1}, dof::Int64)::T where T <: Real
+function _get_Χ²(residuals::Array{T,1}, inv_σi²::Array{T,1}, dof::Int)::T where T <: Real
     x::T = 0.0
     residuals_sq = residuals .* residuals
     for i in 1:length(residuals_sq)
@@ -155,8 +163,13 @@ function _get_Χ²(residuals::Array{T,1}, inv_σi²::Array{T,1}, dof::Int64)::T 
     x / dof
 end
 
-function _set_Χ²!(f::FitFunction, weights::Vector{T})::Nothing where T <: Real
-    f.Χ² = _get_Χ²(f.residuals, weights, length(weights) - length(f.fitted_parameters)) # weights are 1/(σ_i)^2
+function _set_Χ²!(f::FitFunction, weights::Vector{T}; idcs::Vector{Int}=collect(eachindex(weights)))::Nothing where T <: Real
+    f.Χ² = _get_Χ²(f.residuals[idcs], weights[idcs], length(weights[idcs]) - length(f.fitted_parameters) ) # weights are 1/(σ_i)^2
+    nothing
+end
+
+function _set_Χ²!(f::FitFunction; idcs::Vector{Int} = collect(eachindex(f.bin_centers)))::Nothing where T <: Real
+    f.Χ² = _get_Χ²(f.residuals[idcs], inv.(f.model(f.bin_centers, f.fitted_parameters) .* (isempty(f.bin_widths) ? 1.0 : f.bin_widths)), length(f.bin_centers[idcs]) - length(f.fitted_parameters) ) # weights are 1/(σ_i)^2
     nothing
 end
 

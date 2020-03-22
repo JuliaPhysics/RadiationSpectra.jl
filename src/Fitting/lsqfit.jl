@@ -5,7 +5,7 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, xdata::Vector{T}, ydata::Vector{T};
     _set_fit_backend_result!(fit, f)
     _set_fitted_parameters!(fit, f.param)
     _set_residuals!(fit, xdata, ydata)
-    _set_Χ²!(fit, weights)
+    _set_Χ²!(fit, weights, idcs = findall(x->!iszero(x), ydata))
     fit
 end
 
@@ -47,7 +47,7 @@ function lsqfit!(fit::FitFunction{T, 1, NP}, h::Histogram; weights::Union{Missin
     _set_fit_backend_result!(fit, f)
     _set_fitted_parameters!(fit, f.param)
     _set_residuals!(fit, bin_centers, counts)
-    _set_Χ²!(fit, weights)
+    _set_Χ²!(fit)
     fit
 end
 
