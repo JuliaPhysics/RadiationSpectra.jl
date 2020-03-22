@@ -30,6 +30,11 @@ function llhfit(fit::FitFunction{T, 1, NP}, h::Histogram)::Optim.MultivariateOpt
     end
 
     _set_fit_backend_result!(fit, (optim_result, uncertainties))
+    _set_fitted_parameters!(fit, optim_result.minimizer)
+    _set_bin_widths!(fit, bin_widths)
+    _set_bin_centers!(fit, bin_centers)
+    _set_residuals!(fit, bin_centers, counts)
+    _set_Χ²!(fit)
     optim_result
 end
 
@@ -43,8 +48,7 @@ on the histogram `h` in the range `fit.fitranges[1]`. The determined parameters 
 The likelihood for each individual bin is the Poission distribution.
 """
 function llhfit!(fit::FitFunction{T, 1, NP}, h::Histogram) where {T <: AbstractFloat, NP}
-    optim_result = llhfit(fit, h)
-    _set_fitted_parameters!(fit, optim_result.minimizer)
+    llhfit(fit, h)
     fit
 end
 
