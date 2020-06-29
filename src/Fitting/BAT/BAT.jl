@@ -32,7 +32,7 @@ function log_pdf_poisson(λ::T, k::U, logabsgamma::T) where {T<:Real,U<:Real}
 end
 
 
-function BAT.density_logval( l::HistogramModelLikelihood{H, F, T}, pars) where {H, F, T}
+function BAT.logvalof_unchecked(l::HistogramModelLikelihood{H, F, T}, pars) where {H, F, T}
     log_likelihood::Float64 = 0
     @inbounds for i in eachindex(l.weights)
         expected_counts::Float64 = l.bin_volumes[i] * l.f.model(l.midpoints[i], pars)
