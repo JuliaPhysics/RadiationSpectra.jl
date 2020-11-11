@@ -36,14 +36,9 @@ function BAT.eval_logval_unchecked(l::HistogramModelLikelihood{H, F, T}, pars) w
     @inbounds for i in eachindex(l.weights)
         expected_counts::Float64 = l.bin_volumes[i] * l.f.model(l.midpoints[i], pars)
         if isnan(expected_counts) || expected_counts < 0 
-            expected_counts = T(Inf)
+            expected_counts = T(Inf) # This should be removed. The model function, `l.f.model`, should only return values >= 0 
         end
         log_likelihood += log_pdf_poisson(expected_counts, l.weights[i], l.logabsgamma[i])
-        if isnan(log_likelihood)
-            println(pars)
-            println(l.f.model(l.midpoints[i], pars))
-            error("..")
-        end
     end
     return log_likelihood
 end
