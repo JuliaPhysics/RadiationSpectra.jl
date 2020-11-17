@@ -11,14 +11,14 @@ struct HistogramModelLikelihood{H<:Histogram{<:Real, 1}, F<:FitFunction, T <: Re
     midpoints::Vector{T}
     bin_volumes::Vector{T}
     logabsgamma::Vector{T}
+end
 
-    function HistogramModelLikelihood(h::H, f::FitFunction) where {H <: Histogram{<:Real, 1}}
-        T = get_pricision_type(f)
-        new{H, typeof(f), T}( h, f, h.weights,
-                        StatsBase.midpoints(h.edges[1]),
-                        T[StatsBase.binvolume(h, i) for i in eachindex(h.weights)],
-                        T[logabsgamma(w + 1)[1] for w in h.weights]  )
-    end
+function HistogramModelLikelihood(h::H, f::FitFunction) where {H <: Histogram{<:Real, 1}}
+    T = get_pricision_type(f)
+    HistogramModelLikelihood{H, typeof(f), T}( h, f, h.weights,
+                    StatsBase.midpoints(h.edges[1]),
+                    T[StatsBase.binvolume(h, i) for i in eachindex(h.weights)],
+                    T[logabsgamma(w + 1)[1] for w in h.weights]  )
 end
 
 function log_pdf_poisson(λ::T, k::U, logabsgamma::T) where {T<:Real,U<:Real}
@@ -31,20 +31,14 @@ function log_pdf_poisson(λ::T, k::U, logabsgamma::T) where {T<:Real,U<:Real}
     end
 end
 
-
-function BAT.logvalof_unchecked(l::HistogramModelLikelihood{H, F, T}, pars) where {H, F, T}
+function BAT.eval_logval_unchecked(l::HistogramModelLikelihood{H, F, T}, pars) where {H, F, T}
     log_likelihood::Float64 = 0
     @inbounds for i in eachindex(l.weights)
         expected_counts::Float64 = l.bin_volumes[i] * l.f.model(l.midpoints[i], pars)
         if isnan(expected_counts) || expected_counts < 0 
-            expected_counts = T(Inf)
+            expected_counts = T(Inf) # This should be removed. The model function, `l.f.model`, should only return values >= 0 
         end
         log_likelihood += log_pdf_poisson(expected_counts, l.weights[i], l.logabsgamma[i])
-        if isnan(log_likelihood)
-            println(pars)
-            println(l.f.model(l.midpoints[i], pars))
-            error("..")
-        end
     end
     return log_likelihood
 end
@@ -88,9 +82,7 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
 
     posterior = BAT.PosteriorDensity(h_bat, prior)
 
-    algorithm = BAT.MetropolisHastings()
-
-    tuning = BAT.AdaptiveMetropolisTuning(
+    tuning = BAT.AdaptiveMHTuning(
         r = tuning_r,
         λ = 0.5,
         α = 0.15..0.35,
@@ -98,35 +90,45 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         c = 1e-4..1e2
     )
 
+    sampler = BAT.MetropolisHastings(
+        weighting = BAT.RepetitionWeighting(),
+        tuning = tuning
+    )
+
     convergence = BAT.BrooksGelmanConvergence(
         threshold = T(BGConvergenceThreshold),
         corrected = false
     )
 
-    init = BAT.MCMCInitStrategy(
+    init = BAT.MCMCChainPoolInit(
         init_tries_per_chain = 8..128,
         max_nsamples_init = pretunesamples,
         max_nsteps_init = pretunesamples * 10,
         max_time_init = Inf
     )
 
-    burnin = BAT.MCMCBurninStrategy(
+    burnin = BAT.MCMCMultiCycleBurnin(
         max_nsamples_per_cycle = pretunesamples,
         max_nsteps_per_cycle = pretunesamples * 10,
         max_time_per_cycle = Inf,
         max_ncycles = max_ncycles
     )
 
-    bat_result = BATResult(BAT.bat_sample( rng_seed,
-        posterior, (nsamples, nchains), algorithm,
-        max_nsteps = 10 * nsamples,
-        max_time = Inf,
-        tuning = tuning,
-        init = init,
-        burnin = burnin,
-        convergence = convergence,
-        strict = false,
-        filter = true),
+    bat_result = BATResult(
+        BAT.bat_sample( rng_seed, posterior, 
+            nsamples, 
+            BAT.MCMCSampling(
+                sampler = sampler,
+                nchains = nchains,
+                # max_nsteps = 10 * nsamples,
+                # max_time = Inf,
+                init = init,
+                burnin = burnin,
+                convergence = convergence,
+                # strict = false,
+                # filter = true
+            )
+        ),
         prior
     )
 
@@ -256,7 +258,7 @@ function calculate_localmode(h::StatsBase.Histogram{<:Real, N}) where {N}
 end
 
 
-function central_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = BAT.standard_confidence_vals)
+function central_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = BAT.default_credibilities)
     sort!(intervals)
     splitted_histograms = reverse(BAT.split_central(marginalized_pdf, intervals)[1])
     r = Interval[]
@@ -268,7 +270,7 @@ function central_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = B
     end
     return r
 end
-function smallest_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = BAT.standard_confidence_vals)
+function smallest_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = BAT.default_credibilities)
     sort!(intervals)
     splitted_histograms = reverse(BAT.split_smallest(marginalized_pdf, intervals)[1])
     r = Interval[]
@@ -282,12 +284,12 @@ function smallest_intervals(marginalized_pdf::Histogram{<:Real, 1}, intervals = 
 end
 
 @userplot Plot_Marginalized_PDF
-@recipe function f(h::Plot_Marginalized_PDF; interval_type = :smallest)
+@recipe function f(h::Plot_Marginalized_PDF; interval_type = :central)
     if (length(h.args) < 1) || !(typeof(h.args[1]) <: Histogram{<:Real, 1}) 
         error("Wrong arguments. Got: $(typeof(h.args))")
     end
     hmpdf = h.args[1]
-    intervals = BAT.standard_confidence_vals
+    intervals = BAT.default_credibilities
 
     @series begin
         seriestype := :step
@@ -296,16 +298,16 @@ end
     end
 
     h_ints = if interval_type == :smallest
-        reverse(BAT.split_smallest(hmpdf, BAT.standard_confidence_vals)[1])
+        reverse(BAT.split_smallest(hmpdf, BAT.default_credibilities)[1])
     elseif interval_type == :central
-        reverse(BAT.split_central(hmpdf, BAT.standard_confidence_vals)[1])
+        reverse(BAT.split_central(hmpdf, BAT.default_credibilities)[1])
     else
         error("`interval_type` must be either `:smallest` or `:central`")
     end
     for i in length(intervals):-1:1
         @series begin
-            label := """$((interval_type == :smallest ? "SI" : "CI")): $(BAT.standard_confidence_vals[i])"""
-            fillcolor := BAT.standard_colors[i] 
+            label := """$((interval_type == :smallest ? "SI" : "CI")): $(BAT.default_credibilities[i])"""
+            fillcolor := BAT.default_colors[i] 
             h_ints[i]
         end
     end

@@ -1,7 +1,6 @@
 # This file is a part of RadiationSpectra.jl, licensed under the MIT License (MIT).
 using Test
 
-# ENV["JULIA_DEBUG"] = "BAT"
 # using BAT
 using RadiationSpectra
 using IntervalSets
@@ -52,9 +51,6 @@ using IntervalSets
     #     set_parameter_bounds!(ff_bat, [0.0..10^7, 0.2..2.0, 1455..1465, 0..10^4, -30..30])
 
     #     batfit!(ff_bat, h_cal)
-    #     # get_histogram_pdf(ff_bat, nbins = 3)
-    #     # get_standard_deviations(ff_bat)
-    #     # get_samples_inds_by_chain_id(ff_bat, 1)
 
     #     fitted_pars = get_fitted_parameters(ff_bat)
     #     @show ff_bat

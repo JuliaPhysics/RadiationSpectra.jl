@@ -6,7 +6,6 @@
 
 using Documenter
 using Plots
-pyplot(fmt=:svg)
 using RadiationSpectra
 
 makedocs(
