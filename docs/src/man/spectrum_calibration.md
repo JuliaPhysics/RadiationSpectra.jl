@@ -7,8 +7,6 @@ The calibration is based on the assumption that the calibration function is just
 
 ```@example spectrum_calibration
 using Plots, RadiationSpectra 
-myfont = Plots.font(12) # hide
-pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
 
 h_uncal = RadiationSpectra.get_example_spectrum()
 photon_lines = [609.312, 911.204, 1120.287, 1460.830, 1764.494] # keV
