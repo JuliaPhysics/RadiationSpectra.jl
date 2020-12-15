@@ -1,7 +1,7 @@
 # This file is a part of RadiationSpectra.jl, licensed under the MIT License (MIT).
 using Test
 
-using HDF5
+# using HDF5
 using BAT
 using RadiationSpectra
 using IntervalSets
@@ -58,9 +58,9 @@ using IntervalSets
         @test abs(fitted_pars[3] - 1460.830) <= 3
     end
 
-    fn = joinpath(tempdir(), tempname() * ".h5")
-    RadiationSpectra.rs_write(fn, ff_bat.backend_result[1])
-    RadiationSpectra.rs_read(fn)
+    # fn = joinpath(tempdir(), tempname() * ".h5")
+    # RadiationSpectra.rs_write(fn, ff_bat.backend_result[1])
+    # RadiationSpectra.rs_read(fn)
 
 
     @testset "General model functions" begin
