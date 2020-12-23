@@ -77,7 +77,7 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         end
 
         prior = BAT.NamedTupleDist( (;zip( f.parameter_names, prior_dists)...))
-        prior = BAT.DistributionDensity(prior, bounds_type = BAT.reflective_bounds)
+        prior = BAT.DistributionDensity(prior)#, bounds_type = BAT.reflective_bounds)
     end
 
     posterior = BAT.PosteriorDensity(h_bat, prior)
@@ -90,7 +90,7 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
         c = 1e-4..1e2
     )
 
-    sampler = BAT.MetropolisHastings(
+    mcmcalgo = BAT.MetropolisHastings(
         weighting = BAT.RepetitionWeighting(),
         tuning = tuning
     )
@@ -102,31 +102,24 @@ function batfit!(f::FitFunction{T, ND, NP}, h::Histogram{<:Real, 1};
 
     init = BAT.MCMCChainPoolInit(
         init_tries_per_chain = 8..128,
-        max_nsamples_init = pretunesamples,
-        max_nsteps_init = pretunesamples * 10,
-        max_time_init = Inf
+        nsteps_init = pretunesamples * 10,
     )
 
-    burnin = BAT.MCMCMultiCycleBurnin(
-        max_nsamples_per_cycle = pretunesamples,
-        max_nsteps_per_cycle = pretunesamples * 10,
-        max_time_per_cycle = Inf,
+    burnin = BAT.MCMCMultiCycleBurnin( 
+        nsteps_per_cycle = pretunesamples * 10, 
         max_ncycles = max_ncycles
     )
 
     bat_result = BATResult(
-        BAT.bat_sample( rng_seed, posterior, 
-            nsamples, 
+        BAT.bat_sample( 
+            rng_seed, posterior, 
             BAT.MCMCSampling(
-                sampler = sampler,
+                mcalg = mcmcalgo,
                 nchains = nchains,
-                # max_nsteps = 10 * nsamples,
-                # max_time = Inf,
+                nsteps = nsamples,
                 init = init,
                 burnin = burnin,
                 convergence = convergence,
-                # strict = false,
-                # filter = true
             )
         ),
         prior
@@ -170,7 +163,7 @@ function rs_read(fn::AbstractString)
     if !isfile(ser_fn) error("Prior was not serialized to file.") end
     prior = deserialize(ser_fn)
     s = varshape(prior)
-    bat_samples = s.(BAT.bat_read(fn))
+    bat_samples = s.(BAT.bat_read(fn).result)
     return BATResult((result = bat_samples,), prior)
 end
 
