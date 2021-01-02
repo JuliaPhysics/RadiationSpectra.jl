@@ -38,7 +38,7 @@ using IntervalSets
     fitted_pars[1] = 0.9 * fitted_pars[1]
 
     set_initial_parameters!(ff_llh, fitted_pars)
-    llhfit!(ff_llh, h_cal)
+    llhfit!(ff_llh, h_cal) 
 
     fitted_pars = get_fitted_parameters(ff_llh)
     @show ff_llh
@@ -48,7 +48,7 @@ using IntervalSets
 
     ff_bat = FitFunction(T, :GaussPlusLinearBackground)
     set_fitranges!(ff_bat, ((1461 - 20, 1461 + 20),))
-    set_parameter_bounds!(ff_bat, [0.0..10^7, 0.2..2.0, 1455..1465, 0..10^4, -30..30])
+    set_parameter_bounds!(ff_bat, [13000..20000, 1.2..2.2, 1458..1462, 60..100, -5..0])
 
     batfit!(ff_bat, h_cal)
 
