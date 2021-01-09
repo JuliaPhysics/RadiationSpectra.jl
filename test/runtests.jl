@@ -1,94 +1,71 @@
 # This file is a part of RadiationSpectra.jl, licensed under the MIT License (MIT).
 using Test
 
-# using HDF5
-using BAT
+using Distributions
+using StatsBase
+ 
 using RadiationSpectra
-using IntervalSets
 
 @testset "Package RadiationSpectra" begin
     T = Float64
-
-    h_uncal = RadiationSpectra.get_example_spectrum()
-
-    gamma_lines = T[609.312, 911.204, 1120.287, 1460.830, 1764.494, 2614.533]
-    h_cal, h_deconv, peakPositions, threshold, c, c_precal = RadiationSpectra.calibrate_spectrum(h_uncal, gamma_lines, min_n_peaks = 30, σ = 2.0 )
-
-    @info "Calibration constant: c = $(c)"
-    c_true = 0.011259105696794384
-    @testset "Auto calibration" begin
-        @test abs(c - c_true) / c_true < 0.001
+    N = 10^6
+    true_pars = T[N, 0.5, 1]
+    h = fit(Histogram, rand(Normal(true_pars[2:3]...), N), nbins = 400)
+     
+    @testset "rsfit - Parameter as NamedTuple" begin 
+        fitted_pars_nt, opt_result_nt = RadiationSpectra.rsfit(RadiationSpectra.NormalPeakUvD, h) 
+        @test isapprox(true_pars[1], fitted_pars_nt.A, rtol = 1e-2)
+        @test isapprox(true_pars[2], fitted_pars_nt.μ, rtol = 1e-2)
+        @test isapprox(true_pars[3], fitted_pars_nt.σ, rtol = 1e-2)
+        @test isapprox(0, fitted_pars_nt.bgll, rtol = true_pars[1] * 1e-2)
+        @test isapprox(0, fitted_pars_nt.bglr, rtol = true_pars[1] * 1e-2)
     end
 
-    ff_lsq = FitFunction(T, :GaussPlusLinearBackground)
-
-    set_fitranges!(ff_lsq, ((1461 - 20, 1461 + 20),))
-    set_initial_parameters!(ff_lsq, T[10000, 1.4, 1461, 20, 0])
-    set_parameter_bounds!(ff_lsq, [0.0..10^7, 0.2..2.0, 1455..1465, 0..10^4, -30..30])
-
-    lsqfit!(ff_lsq, h_cal)
-
-    fitted_pars = collect(get_fitted_parameters(ff_lsq))
-    @testset "LSQ Fit" begin
-        @test abs(fitted_pars[3] - 1460.830) <= 3
+    @testset "Auto Calibration" begin
+        h_uncal = RadiationSpectra.get_example_spectrum()
+        
+        gamma_lines = T[609.312, 911.204, 1120.287, 1460.830, 1764.494, 2614.533]
+        h_cal, h_deconv, peakPositions, threshold, c, c_precal = RadiationSpectra.calibrate_spectrum(h_uncal, gamma_lines, min_n_peaks = 30, σ = 2.0 )
+        
+        @info "Calibration constant: c = $(c)"
+        c_true = 0.011259105696794384
+        @testset "Auto calibration" begin
+            @test isapprox(c, c_true, rtol = 1e-3) #abs(c - c_true) / c_true < 0.001
+        end
     end
 
-    ff_llh = FitFunction(T, :GaussPlusLinearBackground)
-    set_fitranges!(ff_llh, ((1461 - 20, 1461 + 20),))
-    fitted_pars[1] = 0.9 * fitted_pars[1]
+    
+    @testset "BAT Backend" begin
+        # ENV["JULIA_DEBUG"] = "BAT"
+        # using BAT
+        # bat_samples = RadiationSpectra.rsbatfit(RadiationSpectra.NormalPeakUvD, h) 
 
-    set_initial_parameters!(ff_llh, fitted_pars)
-    llhfit!(ff_llh, h_cal)
+        # using ForwardDiff
+        # using ValueShapes
 
-    fitted_pars = get_fitted_parameters(ff_llh)
-    @show ff_llh
-    @testset "LLH Fit" begin
-        @test abs(fitted_pars[3] - 1460.830) <= 3
-    end
-
-    ff_bat = FitFunction(T, :GaussPlusLinearBackground)
-    set_fitranges!(ff_bat, ((1461 - 20, 1461 + 20),))
-    set_parameter_bounds!(ff_bat, [0.0..10^7, 0.2..2.0, 1455..1465, 0..10^4, -30..30])
-
-    batfit!(ff_bat, h_cal)
-
-    fitted_pars = get_fitted_parameters(ff_bat)
-    @show ff_bat
-    @testset "BAT Fit" begin
-        @test abs(fitted_pars[3] - 1460.830) <= 3
-    end
-
-    # fn = joinpath(tempdir(), tempname() * ".h5")
-    # RadiationSpectra.rs_write(fn, ff_bat.backend_result[1])
-    # RadiationSpectra.rs_read(fn)
-
-
-    @testset "General model functions" begin
-        ff = FitFunction(T, :Gauss)
-        RadiationSpectra._set_fitted_parameters!(ff, [1, 1, 0])
-        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
-        println(ff)
-        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
-
-        ff = FitFunction(:PDF_Gauss)
-        ff = FitFunction(T, :PDF_Gauss)
-        RadiationSpectra._set_fitted_parameters!(ff, [1, 0])
-        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
-        println(ff)
-        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
-
-        ff = FitFunction(T, :GaussPlusConstantBackground)
-        RadiationSpectra._set_fitted_parameters!(ff, [1, 1, 0, 0])
-        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
-        println(ff)
-        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
-
-        ff = FitFunction(T, :GaussPlusLinearBackground)
-        RadiationSpectra._set_fitted_parameters!(ff, [1, 1, 0, 0, 0])
-        ff.model(T[0, 1], collect(get_fitted_parameters(ff)))
-        println(ff)
-        @test round.(ff.model(T[0, 1], collect(get_fitted_parameters(ff))), digits = 5) == round.(T[0.3989422804014327, 0.24197072451914337], digits = 5)
+        # T = Float64
+        # bounds = RadiationSpectra.initial_parameter_guess(h, RadiationSpectra.NormalPeakUvD{T})[end]
+        # hp = RadiationSpectra.BATHistLLHPrecalulations(RadiationSpectra.HistLLHPrecalulations(h), RadiationSpectra.NormalPeakUvD)
+        # prior = BAT.DistributionDensity(BAT.NamedTupleDist( bounds ) )
+        # globalparshape = varshape(prior)
+        # x = bat_initval(prior).result
+    
+        # BAT.eval_logval_unchecked(hp, x[])
+    
+        # @time BAT.eval_logval_unchecked(hp, x[])
+    
+        # X = unshaped(x, globalparshape);
+        # f = let hp=hp, shape=globalparshape
+        #     X -> BAT.eval_logval_unchecked(hp, shape(X)[])
+        # end
+    
+        # ForwardDiff.gradient(f, X)
+    
+        # BAT.eval_gradlogval(hp, x)
+    
+        
     end
 
 
 end # testset
+
