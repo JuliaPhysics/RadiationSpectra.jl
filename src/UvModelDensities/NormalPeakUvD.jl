@@ -27,7 +27,7 @@ function poly_coeffs_from_levels(bgxl, bgxr, bgll, bglr)
     offset, slope
 end
 
-function initial_parameter_guess(h::StatsBase.Histogram{<:Any, 1}, d::Type{NormalPeakUvD{T}}) where {T}
+function initial_parameter_guess(d::Type{NormalPeakUvD{T}}, h::StatsBase.Histogram{<:Any, 1}) where {T}
     nh = normalize(h)
     # estimate background parameters through side windows
     bgxl = T(h.edges[1][1])
@@ -101,8 +101,12 @@ function initial_parameter_guess(h::StatsBase.Histogram{<:Any, 1}, d::Type{Norma
     p0, lower_bounds, upper_bounds, parshape, bounds
 end
 
-rsfit(::Type{NormalPeakUvD}, h::Histogram{<:Any, 1}) =
-    rsfit(h, RadiationSpectra.NormalPeakUvD, initial_parameter_guess(h, RadiationSpectra.NormalPeakUvD{Float64})[1:4]...) 
+fit(::Type{<:NormalPeakUvD}, h::Histogram{<:Any, 1}) =
+    fit(NormalPeakUvD, h, initial_parameter_guess(NormalPeakUvD{Float64}, h)[1:4]...) 
+fit(::Type{NormalPeakUvD{T}}, h::Histogram{<:Any, 1}) where {T} =
+    fit(NormalPeakUvD, h, initial_parameter_guess(NormalPeakUvD{T}, h)[1:4]...) 
+
+
 
 
  

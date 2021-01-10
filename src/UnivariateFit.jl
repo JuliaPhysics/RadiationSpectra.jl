@@ -44,33 +44,35 @@ function loglikelihood(h::HistLLHPrecalulations{1}, DT::Type{<:UvModelDensity}, 
 end
  
 """
-    # rsfit(h::Histogram{<:Any, 1}, DT::Type{<:UvModelDensity}, 
+    # fit(h::Histogram{<:Any, 1}, DT::Type{<:UvModelDensity}, 
              p0::AbstractVector, lower_bounds::AbstractVector, upper_bounds::AbstractVector)
 
 Maximum Likelihood Estimation Fit of model density `d` on the histogram `h`.     
 """
-function rsfit(h::Histogram{<:Any, 1}, DT::Type{<:UvModelDensity}, 
+function fit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1}, 
         p0::AbstractVector, lower_bounds::AbstractVector, upper_bounds::AbstractVector,
-        parshape::ValueShapes.AbstractValueShape = valshape(p0)) 
+        parshape::ValueShapes.AbstractValueShape = valshape(p0); 
+        backend::Type{Val{:Optim}} = Val{:Optim}) 
     hp = HistLLHPrecalulations(h)
     f(p::AbstractVector{T}, hp=hp, DT=DT, ps=parshape) where {T} = -loglikelihood(hp, DT, p, ps)::T 
     opt_result = Optim.optimize( f, promote(lower_bounds, upper_bounds, p0)..., 
         Fminbox(BFGS()); autodiff=:forward )
-    return opt_result.minimizer, opt_result
+    return DT(_par_in_input_form(parshape(opt_result.minimizer))), opt_result
 end
 
 
 """
-    # rsfit(h::Histogram{<:Any, 1}, DT::Type{<:UvModelDensity}, 
+    # fit(h::Histogram{<:Any, 1}, DT::Type{<:UvModelDensity}, 
              p0::NamedTuple, lower_bounds::NamedTuple, upper_bounds::NamedTuple)
 
 Maximum Likelihood Estimation Fit of model density `d` on the histogram `h`.     
 """
-function rsfit(h::Histogram{<:Any, 1}, DT::Type{<:UvModelDensity}, 
+function fit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1}, 
         p0::NamedTuple, 
         lower_bounds::NamedTuple, 
         upper_bounds::NamedTuple, 
-        parshape::AbstractValueShape = valshape(p0))
+        parshape::AbstractValueShape = valshape(p0); 
+        backend::Type{Val{:Optim}} = Val{:Optim})
     # flatten parameter and bounds
     flat_p0 = ValueShapes.unshaped(p0, parshape)
     T = eltype(flat_p0)
@@ -79,9 +81,6 @@ function rsfit(h::Histogram{<:Any, 1}, DT::Type{<:UvModelDensity},
     flat_lower::Vector{T} = ValueShapes.unshaped(rnt_lower, valshape(rnt_lower))
     flat_upper::Vector{T} = ValueShapes.unshaped(rnt_upper, valshape(rnt_upper))
     
-    minimizer, opt_result = rsfit(Histogram(h.edges[1], T.(h.weights)), DT, flat_p0, flat_lower, flat_upper, parshape)
-    return parshape(minimizer)[], opt_result
+    return fit(DT, Histogram(h.edges[1], T.(h.weights)), flat_p0, flat_lower, flat_upper, parshape)
 end
-
-
 

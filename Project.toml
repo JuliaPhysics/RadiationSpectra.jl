@@ -24,8 +24,8 @@ ValueShapes = "136a8f8c-c49b-4edb-8b98-f3d64d48be8f"
 julia = "1.6"
 
 [extras]
-IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+BAT = "c0cd4b16-88b7-57fa-983b-ab80aecada7e"
 
 [targets]
-test = ["Test", "IntervalSets"]
+test = ["Test", "BAT"]

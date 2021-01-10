@@ -75,7 +75,7 @@ function _filter_peaks_from_peakfinder(h::Histogram{<:Real, 1}, peakPositions::V
     pfits = []
     for p in peakPositions
         fitrange = (p - 5σ*step(h.edges[1]), p + 5σ*step(h.edges[1]))
-        fit = rsfit(NormalPeakUvD, subhist(h, fitrange))[1]
+        fit = fit(NormalPeakUvD, subhist(h, fitrange))[1]
         # fit = fit_single_peak_histogram(h, fitrange, fit_function = :Gauss_pol1)
         push!(pfits, fit)
     end
@@ -127,7 +127,7 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
             continue
         end
         # fit = fit_single_peak_histogram(h, fitrange, fit_function = :Gauss_pol1)
-        fit = rsfit(NormalPeakUvD, subhist(h, fitrange))[1]
+        fit = fit(NormalPeakUvD, subhist(h, fitrange))[1]
         push!(peak_fits, fit)
         push!(processed_photon_lines, pl)
     end

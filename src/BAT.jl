@@ -13,33 +13,21 @@ function BAT.eval_logval_unchecked(d::BATHistLLHPrecalulations{H, DT}, pars) whe
     return log_likelihood
 end
 
-
-function rsbatfit(::Type{NormalPeakUvD}, h::Histogram{<:Any, 1};
-            rng_seed = Philox4x((123, 456)),
-            prior = missing,
-            nsamples::Int = 10^5, 
-            nchains::Int = 2, 
-            pretunesamples::Int = 20000, 
-            max_ncycles::Int = 30, 
-            tuning_r = 0.5,
-            BGConvergenceThreshold::Real = sqrt(5) )
-    T = Float64
-    bounds = initial_parameter_guess(h, NormalPeakUvD{T})[end]
-
+function batfit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1}, prior::BAT.DistributionDensity;
+        rng_seed = Philox4x((123, 456)),
+        nsteps::Int = 10^4, 
+        nchains::Int = 4, 
+        pretunesamples::Int = 100, 
+        max_ncycles::Int = 30, 
+        BGConvergenceThreshold::Real = sqrt(totalndof(prior)))
     hp = BATHistLLHPrecalulations(HistLLHPrecalulations(h), NormalPeakUvD)
-    prior = BAT.DistributionDensity(BAT.NamedTupleDist( bounds ) )
     posterior = BAT.PosteriorDensity(hp, prior)
     posterior = BAT.bat_transform(BAT.PriorToGaussian(), posterior, BAT.PriorSubstitution()).result
     trafo = BAT.trafoof(posterior.likelihood) 
 
     mcmcalgo = BAT.HamiltonianMC()
-    # mcmcalgo = BAT.MetropolisHastings(
-    #     weighting = BAT.RepetitionWeighting(),
-    #     tuning = tuning
-    # )
-
     convergence = BAT.BrooksGelmanConvergence(
-        threshold = T(BGConvergenceThreshold),
+        threshold = BGConvergenceThreshold,
         corrected = false
     )
 
@@ -53,20 +41,40 @@ function rsbatfit(::Type{NormalPeakUvD}, h::Histogram{<:Any, 1};
         max_ncycles = max_ncycles
     )
 
-    # bat_samples = inv(trafo).(BAT.bat_sample( 
     bat_samples = inv(trafo).(
-            BAT.bat_sample( 
-                rng_seed, posterior,
-                BAT.MCMCSampling(
-                    mcalg = mcmcalgo,
-                    nchains = nchains,
-                    nsteps = nsamples,
-                    init = init,
-                    burnin = burnin,
-                    convergence = convergence,
-                )
-            ).result
-        )
-    return bat_samples
+        BAT.bat_sample( 
+            rng_seed, posterior,
+            BAT.MCMCSampling(
+                mcalg = mcmcalgo,
+                nchains = nchains,
+                nsteps = nsteps,
+                init = init,
+                burnin = burnin,
+                convergence = convergence,
+            )
+        ).result
+    )
+    return DT(mode(bat_samples)[]), bat_samples
 end
 
+function batfit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1}, bounds::NamedTuple; kwargs...)
+    prior = BAT.DistributionDensity(BAT.NamedTupleDist( bounds ) )
+    batfit(NormalPeakUvD, h, prior; kwargs...) 
+end
+
+function fit(d::Type{<:AbstractModelDensity}, h::Histogram, backend::Symbol = :Optim, args...; kwargs...)
+    if backend == :Optim
+        fit(d, h, args...; kwargs...)
+    elseif backend == :BAT
+        batfit(d, h, args...; kwargs...)
+    else
+        error("backend must be either `:Optim` (Likelihood optimizer fit via Optim.jl) or `:BAT` (Bayesian fit via BAT.jl). It was $backend.")
+    end
+end
+
+
+
+function batfit(::Type{NormalPeakUvD}, h::Histogram{<:Any, 1}; kwargs...)
+    bounds = initial_parameter_guess(NormalPeakUvD{Float64}, h)[end]
+    batfit(NormalPeakUvD, h, bounds; kwargs...)
+end
