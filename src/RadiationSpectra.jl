@@ -22,6 +22,12 @@ module RadiationSpectra
     using StatsBase
     using ValueShapes
 
+    import StatsBase: fit
+
+    export AbstractModelDensity, fit, subhist
+    export NormalPeakUvD
+    export initial_parameter_guess
+
     """
         get_example_spectrum()::Histogram
 
@@ -37,15 +43,15 @@ module RadiationSpectra
     include("genreal_tools.jl")
 
     include("ModelDensities.jl")
-    include("UvModelDensities/NormalPeakUvD.jl")
-    
     include("UnivariateFit.jl")
+
+    include("UvModelDensities/NormalPeakUvD.jl")
 
     include("PeakFinder/PeakFinder.jl")
     include("AutoCalibration/AutoCalibration.jl")
 
     function __init__()
-        @require BAT="c0cd4b16-88b7-57fa-983b-ab80aecada7e" include("BAT.jl")
+        @require BAT="c0cd4b16-88b7-57fa-983b-ab80aecada7e" include("BAT/BAT.jl")
     end
 
 end # module

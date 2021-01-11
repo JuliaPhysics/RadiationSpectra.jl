@@ -72,21 +72,20 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
 end
 
 function _filter_peaks_from_peakfinder(h::Histogram{<:Real, 1}, peakPositions::Vector{T}, σ::Real) where {T <: Real}
-    pfits = []
+    peak_dists = []
     for p in peakPositions
         fitrange = (p - 5σ*step(h.edges[1]), p + 5σ*step(h.edges[1]))
-        fit = fit(NormalPeakUvD, subhist(h, fitrange))[1]
-        # fit = fit_single_peak_histogram(h, fitrange, fit_function = :Gauss_pol1)
-        push!(pfits, fit)
+        pd = fit(NormalPeakUvD, subhist(h, fitrange))[1]
+        push!(peak_dists, pd)
     end
-    d = map(i -> abs(pfits[i].μ - peakPositions[i]), eachindex(peakPositions));
-    σs = map(f -> f.σ, pfits);   
+    d = map(i -> abs(peak_dists[i].UvNormal.μ - peakPositions[i]), eachindex(peakPositions));
+    σs = map(f -> f.UvNormal.σ, peak_dists);   
     hd = harmmean(d);
     hσ = harmmean(σs);
     accepted_peakPositions = T[]
-    for (ipf, pf) in enumerate(pfits)
-        if d[ipf] < 4 * hd && abs(pf.σ) < 2hσ
-            push!(accepted_peakPositions, pf.μ)
+    for (ipf, pf) in enumerate(peak_dists)
+        if d[ipf] < 4 * hd && abs(pf.UvNormal.σ) < 2hσ
+            push!(accepted_peakPositions, pf.UvNormal.μ)
         end
     end
     accepted_peakPositions
@@ -113,7 +112,7 @@ end
 
 function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real, 1, E}, photon_lines::Vector{<:Real}, c_pre::Real=1.0) where {E}
     c_pre = Float64(c_pre)
-    peak_fits = []
+    peak_dists = []
     photon_lines = Float64.(photon_lines)
     processed_photon_lines = Float64[]
     for pl in photon_lines
@@ -126,23 +125,17 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
             @warn("$pl keV line not sufficiently contained in Histogram, skipping...");
             continue
         end
-        # fit = fit_single_peak_histogram(h, fitrange, fit_function = :Gauss_pol1)
-        fit = fit(NormalPeakUvD, subhist(h, fitrange))[1]
-        push!(peak_fits, fit)
+        pd = fit(NormalPeakUvD, subhist(h, fitrange))[1]
+        push!(peak_dists, pd)
         push!(processed_photon_lines, pl)
     end
     photon_lines = intersect(photon_lines, processed_photon_lines)
-    fitted_peak_positions = [ fr.μ for fr in peak_fits ]
+    fitted_peak_positions = [ pd.UvNormal.μ for pd in peak_dists ]
 
     @fastmath function _linear_function_fixed_offset_at_zero(p::Vector{T}) where {T}
         return sqrt( sum(((fitted_peak_positions * p[1]) .- photon_lines).^2) )
     end
-
-    # cfit = FitFunction{Float64}( linear_function_fixed_offset_at_zero, 1, 1)
-    # set_initial_parameters!(cfit,  [c_pre] )
-    # set_fitranges!(cfit, (((minimum(fitted_peak_positions) - 10), maximum(fitted_peak_positions) + 10),))
-    # lsqfit!(cfit, fitted_peak_positions, photon_lines)
-    
+   
     opt_result = Optim.optimize( 
         _linear_function_fixed_offset_at_zero, 
         Float64[0], Float64[Inf], Float64[c_pre], 
@@ -151,7 +144,7 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
     
     c = opt_result.minimizer[1]
 
-    return c, peak_fits, opt_result
+    return c, peak_dists, opt_result
 end
 
 

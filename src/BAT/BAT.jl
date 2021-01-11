@@ -4,7 +4,8 @@ end
 BATHistLLHPrecalulations(d::H, ::Type{DT}) where {H, DT} = BATHistLLHPrecalulations{H, DT}(d)
 
 function BAT.eval_logval_unchecked(d::BATHistLLHPrecalulations{H, DT}, pars) where {H, DT}
-    log_likelihood = 0
+    T = eltype(pars)
+    log_likelihood::T = zero(T)
     model_dist = DT(pars)
     @inbounds for i in eachindex(d.d.weights)
         expected_counts = d.d.volumes[i] * evaluate(model_dist, d.d.midpoints[i])
