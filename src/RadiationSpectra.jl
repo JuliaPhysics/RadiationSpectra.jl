@@ -22,6 +22,7 @@ module RadiationSpectra
     using StatsBase
     using ValueShapes
 
+    import Base: eltype
     import StatsBase: fit
 
     export AbstractModelDensity, fit, subhist
