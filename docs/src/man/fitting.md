@@ -9,8 +9,6 @@ Pages = ["fitting.md"]
 1. Get a spectrum and find a peak to fit
 ```@example fitting_hist
 using Plots, RadiationSpectra, StatsBase
-myfont = Plots.font(12) # hide
-pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
 
 h_uncal = RadiationSpectra.get_example_spectrum()
 h_decon, peakpos = RadiationSpectra.peakfinder(h_uncal)
@@ -101,8 +99,6 @@ plot!(fitfunc_refined, label = "Fit Gaussian to the data\nrefined parameter gues
 * Write a model function
 ```@example fitting_1D_data
 using Plots, RadiationSpectra
-myfont = Plots.font(12) # hide
-pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
 function model(x, par::Vector{T}) where {T}
     cp0::T   = par[1]
     cp1::T   = par[2]
