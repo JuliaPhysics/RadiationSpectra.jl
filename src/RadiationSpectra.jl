@@ -10,11 +10,9 @@ module RadiationSpectra
     using Statistics
 
     using EmpiricalDistributions
-    using ForwardDiff
     using IntervalSets
     using NamedTupleTools
     using Optim
-    using ParallelProcessingTools
     using Random123
     using RecipesBase
     using Requires
