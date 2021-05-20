@@ -25,6 +25,7 @@ function bat_fit(UvD::Type{<:UvModelDensity}, h::Histogram{<:Any, 1};
             nchains::Int = 4, 
             nsteps_init::Int = 2000, 
             nsteps_per_cycle::Int = 2000, 
+            strict = true,
             max_ncycles::Int = 1, 
             threshold::Real = 1.1) 
     hp = BATHistLLHPrecalulations(HistLLHPrecalulations(h), UvD)
@@ -58,7 +59,7 @@ function bat_fit(UvD::Type{<:UvModelDensity}, h::Histogram{<:Any, 1};
                     nsteps = nsamples,
                     init = init,
                     burnin = burnin,
-                    strict = false,
+                    strict = strict,
                     convergence = convergence,
                 )
             ).result
