@@ -6,9 +6,21 @@ Pages = ["fitting.md"]
 
 ## Likelihood (LLH) Fit - 1D-Histogram
 
-1. Get a spectrum and find a peak to fit
+The underlying distribution for the Likelihood of a model to an histogram 
+is the Poisson distribution. The evaluation of the likelihood of an model with a set of
+parameters on the data in form of a 1D-Histogram is implemented in this package. 
+
+Here, it is shown exemplary, how a model is defined and how it is fitted to a histgram. 
+
+### 1. The data
+
+The data will be in form of 1D-Histograms. 
+Here, the histogram is a small subhistogram around a peak in the uncalibratum spectrum of
+a germanium detector. 
+
 ```@example fitting_hist
-using Plots, RadiationSpectra, StatsBase
+using Plots, RadiationSpectra, StatsBase, Distributions
+gr(lw = 2.0); # hide
 
 h_uncal = RadiationSpectra.get_example_spectrum()
 h_decon, peakpos = RadiationSpectra.peakfinder(h_uncal)
@@ -17,143 +29,107 @@ strongest_peak_bin_idx = StatsBase.binindex(h_uncal, peakpos[1])
 strongest_peak_bin_width = StatsBase.binvolume(h_uncal, strongest_peak_bin_idx)
 strongest_peak_bin_amplitude = h_uncal.weights[strongest_peak_bin_idx]
 
-plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), ylims=[0, strongest_peak_bin_amplitude * 1.1], fmt =:svg)
+h_sub = RadiationSpectra.subhist(h_uncal, (peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20))
+
+plot(h_sub, st=:step, size=(800,400));
+savefig("only_data_hist.pdf"); # hide
+savefig("only_data_hist.svg"); nothing # hide
+```
+[![Data](only_data_hist.svg)](only_data_hist.pdf)
+
+
+### 2. User Defined Model
+
+Now we want to define the model, which we want to fit to the data. 
+
+The model is a new struct which needs to be subtype of `RadiationSpectra.UvModelDensity{T}`.
+Here, our model will be a Gaussian (signal) on top of flat offset (background):
+```@example fitting_hist
+struct MyModel{T} <: RadiationSpectra.UvModelDensity{T}
+    A::T
+    σ::T
+    μ::T
+    offset::T
+end
+ENV["GKSwstype"]
 ```
 
-2. Write a model function
+Also, a method for the this type for the function `RadiationSpectra.evaluate(d::UvModelDensity, x)`
+has to be defined. Note, that these are supposed to be densities as the returned value 
+are multiplied to the bin width of the corresponding bin in the calculation of the likelihood. 
 ```@example fitting_hist
-function model(x, par)
-    scale = par[1]
-    σ    = par[2]
-    μ     = par[3]
-    cp0   = par[4]
-    return @. scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0
+function RadiationSpectra.evaluate(d::MyModel, x)
+    return d.A * pdf(Normal(d.μ, d.σ), x) + d.offset
 end
 ```
 
-1. Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref).
-The type, a model function, the dimensionalty of the the model and the number of parameters must be specified:
-```@example fitting_hist
-fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 4); # 1 dimensional, 4 parameters
-set_fitranges!(fitfunc, ((peakpos[1] - 1000, peakpos[1] + 1000),) )
-p0 = (
-    A = strongest_peak_bin_amplitude * 4,
-    σ = strongest_peak_bin_width * 2,
-    μ = peakpos[1],
-    offset = 0
-)
-set_initial_parameters!(fitfunc, p0)
-fitfunc
-```
-
-4. Performe the fit with the [`RadiationSpectra.llhfit!`](@ref)-function and plot the result
-```@example fitting_hist
-RadiationSpectra.llhfit!(fitfunc, h_uncal)
-
-plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
-plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
-#plot!(fitfunc, h_uncal, lc=:red, label="LLH Fit\nΧ² = $(round(fitfunc.Chi2, digits=2))", fmt=:svg) #hide
-plot!(fitfunc, h_uncal, lc=:red, label="LLH Fit", fmt=:svg)
-```
+The final step is to define a constructor for the model for a set of parameters. 
+Here, the parameters are in form of s NamedTuple, which is the recommend form.
+But, also a simple vector can be used. 
+The package [ValueShapes.jl](https://github.com/oschulz/ValueShapes.jl) is integrated into RadiationSpectra.jl. 
+Thus, also vectors or matrices can be used within NamedTuple's.
+Here, only single values will be used: 
 
 ```@example fitting_hist
-fitfunc # hide
-```
-
-## LSQ Fit - 1D-Histogram
-
-To perfrom a LSQ Fit on a spectrum repeat the first three steps from the [Likelihood (LLH) Fit - 1D-Histogram](@ref).
-Then,
-
-1. Perform the fit with the [`RadiationSpectra.lsqfit!`](@ref)-function and plot the result
-```@example fitting_hist
-RadiationSpectra.lsqfit!(fitfunc, h_uncal)
-
-plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1])
-plot!(fitfunc, h_uncal, use_initial_parameters=true, lc=:green, label="Guess")
-#plot!(fitfunc, h_uncal, lc=:red, label="LSQ Fit\nΧ² = $(round(fitfunc.Chi2, digits=2))", fmt=:svg) #hide
-plot!(fitfunc, h_uncal, lc=:red, label="LSQ Fit", fmt=:svg)
-```
-
-```@example fitting_hist
-fitfunc # hide
-```
-## Easy Fitting for Histograms Containing a Single Peak
-
-There are predefined fit routines [`RadiationSpectra.fit_single_peak_histogram`](@ref), [`RadiationSpectra.fit_single_peak_histogram_refined`](@ref) that allow quick and easy fitting of standard distribution functions to histograms containing a single peak (for now supported `:Gauss`, `:Cauchy`, `:Gauss_pol1`, to be passed as keyword argument: `fit_function = ...`). Here, initial parameter guessing is attempted for you and you can obtain results in just one line.
-```@example fitting_hist
-subrange = (peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 10)
-plot(h_uncal, st=:step, xlims=subrange, size=(800,400), label="Spectrum", ylims=[0, strongest_peak_bin_amplitude * 1.1], lw=2)
-
-fitfunc = fit_single_peak_histogram(h_uncal, subrange, fit_function = :Gauss_pol1 )
-#plot!(fitfunc, label = "Fit Gaussian to the data", lw=3) #hide
-plot!(fitfunc, label = "Fit Gaussian to the data\nΧ² = $(round(fitfunc.Chi2, digits=2))", lw=3)
-
-fitfunc_refined = fit_single_peak_histogram_refined(h_uncal, subrange, fit_function = :Gauss_pol1, n_sig = 3 )
-# plot!(fitfunc_refined, label = "Fit Gaussian to the data\nrefined parameter guessing", fmt=:svg, line = (3, :dash, :orange)) #hide
-plot!(fitfunc_refined, label = "Fit Gaussian to the data\nrefined parameter guessing\nΧ² = $(round(fitfunc_refined.Chi2, digits=2))", fmt=:svg, line = (3, :dash, :orange))
-
-```
-## LSQ Fit - 1D-Data Arrays
-
-* Write a model function
-```@example fitting_1D_data
-using Plots, RadiationSpectra
-function model(x, par::Vector{T}) where {T}
-    cp0::T   = par[1]
-    cp1::T   = par[2]
-    return @. cp0 + cp1 * x
+function MyModel(nt::NamedTuple{(:A,:μ,:σ,:offset)})
+    T = promote_type(typeof.(values(nt))...)
+    MyModel(T(nt.A), T(nt.σ), T(nt.μ), T(nt.offset))
 end
+nothing # hide
 ```
 
-* Create some random data
-```@example fitting_1D_data
-xdata = Float64[1, 2, 3, 6, 8, 12]
-ydata = Float64[model(x, [-0.2, 0.7]) + (rand() - 0.5) for x in xdata]
-xdata_err = Float64[0.5 for i in eachindex(xdata)]
-ydata_err = Float64[1 for i in eachindex(xdata)]
+### 3. Set up initial guess and bounds of the parameters
 
-plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), label="Data", fmt=:svg)
-```
+Either a maximum likelihood estimation (MLE) (default) or and bayesian fit can be performed. 
+In the maximum likehihood fit the package [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) is used to maximimze the likelihood. 
+The bayesian fit is performed via the [BAT.jl](https://github.com/bat/BAT.jl) package.
 
-* Set up the fit function [`RadiationSpectra.FitFunction{T}`](@ref)
-```@example fitting_1D_data
-fitfunc = RadiationSpectra.FitFunction{Float64}( model, 1, 2 );
-set_fitranges!(fitfunc, ((xdata[1], xdata[end]),) )
-p0 = (
-    offset = 0,
-    linear_slope = 1
-)
-set_initial_parameters!(fitfunc, p0)
-println(fitfunc)
-```
+In order to performe the MLE an initial guess, lower bounds and upper bounds for the parameter have to be given:
 
-* Performe the fit and plot the result
-```@example fitting_1D_data
-RadiationSpectra.lsqfit!(fitfunc, xdata, ydata, xdata_err, ydata_err) # xdata_err and ydata_err are optional
-
-plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), label="Data")
-plot!(fitfunc, use_initial_parameters=true, lc=:green, label="Guess")
-plot!(fitfunc, lc=:red, label="LSQ Fit", fmt=:svg)
-```
-
-```@example fitting_1D_data
-println(fitfunc) # hide
-```
-
-## Uncertainty Estimation
-
-For all fit backends (`lsqfit!`, `llhfit!` and `batfit!`) one can estimate the uncertainties of the
-fitted parameters
 ```@example fitting_hist
-fitfunc.fitted_parameters
+p0 = (A = 4000.0, μ = 129500, σ = 500, offset = 100) 
+lower_bounds = (A = 0.0, μ = 128000, σ = 0.1, offset = 0) 
+upper_bounds = (A = 30000.0, μ = 131000, σ = 1000, offset = 500) 
+nothing # hide
 ```
 
-via
+Note, the package [ValueShapes.jl](https://github.com/oschulz/ValueShapes.jl) can also be used to set individual parameters constant in the fit:
+```@xample
+using ValueShapes
+p0_fix_offset = (A = 4000.0, μ = 129500, σ = 500, offset = ConstValueShape(100)) 
+```
+It is enough to fix the parameter in the initial guess. 
+It is not needed to also use `ConstValueShape` in the bounds. 
+
+### 4. Performe the fit and plot the result
+
+Now we are ready to performe the fit. 
+The syntax follows the syntax of the `fit` function of 
+[StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) and 
+[Distributions.jl](https://github.com/JuliaStats/Distributions.jl):
+`fit(::Type{Model}, data)::Model`.
+Here, the Model will by our just defined model `MyModel` and the data will be the histogrom `h_sub`.
+Also the initial guess and bounds have to be parsed as additional arguments:
+
 ```@example fitting_hist
-σs = RadiationSpectra.get_standard_deviations(fitfunc)
+fitted_model, backend_result = fit(MyModel, h_sub, p0, lower_bounds, upper_bounds)
 ```
 
-The estimation is under the assumption that the probability density function of each
-parameter follows a normal distribution and that the parameters are uncorrelated.
-The returned values correspond to 1σ of the normal distributions.
+The first returned argument, `fitted_model`, is an instance of `MyModel` with the fitted parameters. 
+
+The second returned argument, `backend_result`, is, in case of an MLE fit, the returned object of the optimizer (`Optim.optimize`) used to performe the maximization. 
+In case a bayesian fit, `BAT.jl` as fit backend, the second argument would be samples from BAT.jl.
+
+
+### 5. Plot the fitted model:
+
+The package provides a simple plot recipe to plot the fitted model on top of the data
+through the defined `evaluate` method and the stepsize of the histogram:
+
+```@example fitting_hist
+plot(h_sub, st=:step, size=(800,400), label="Spectrum");
+plot!(fitted_model, h_sub, label = "Fit");
+savefig("data_hist_plus_fit.svg"); # hide
+```
+![](data_hist_plus_fit.svg)
+
