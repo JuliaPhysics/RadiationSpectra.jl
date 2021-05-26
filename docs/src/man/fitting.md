@@ -51,7 +51,6 @@ struct MyModel{T} <: RadiationSpectra.UvModelDensity{T}
     μ::T
     offset::T
 end
-ENV["GKSwstype"]
 ```
 
 Also, a method for the this type for the function `RadiationSpectra.evaluate(d::UvModelDensity, x)`
@@ -129,7 +128,8 @@ through the defined `evaluate` method and the stepsize of the histogram:
 ```@example fitting_hist
 plot(h_sub, st=:step, size=(800,400), label="Spectrum");
 plot!(fitted_model, h_sub, label = "Fit");
-savefig("data_hist_plus_fit.svg"); # hide
+savefig("data_hist_plus_fit.pdf"); # hide
+savefig("data_hist_plus_fit.svg"); nothing # hide
 ```
-![](data_hist_plus_fit.svg)
+[![Data](data_hist_plus_fit.svg)](data_hist_plus_fit.pdf)
 

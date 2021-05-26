@@ -14,5 +14,6 @@ p_decon = plot(peakpos, st=:vline, c=:red, label="Peaks", lw=0.3);
 plot!(h_decon, st=:step, label="Deconvoluted spectrum", c=1, lw=1.2); 
 plot(p_uncal, p_decon, size=(800,500), layout=(2, 1)); 
 savefig("spectrum_devon.svg"); # hide
+savefig("spectrum_devon.pdf"); nothing # hide
 ```
-![](spectrum_devon.svg)
+[![Data](spectrum_devon.svg)](spectrum_devon.pdf)

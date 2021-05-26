@@ -20,8 +20,9 @@ p_cal = plot(h_cal, st=:step, label="Calibrated spectrum", xlabel="E / keV");
 vline!(photon_lines, lw=0.5, color=:red, label="Photon lines");
 plot(p_uncal, p_deconv, p_cal, size=(800,700), layout=(3, 1));
 savefig("calibration_of_spectrum.svg"); # hide
+savefig("calibration_of_spectrum.pdf"); nothing # hide
 ```
-![](calibration_of_spectrum.svg)
+[![Data](calibration_of_spectrum.svg)](calibration_of_spectrum.pdf)
 
 
 
@@ -30,8 +31,9 @@ Zoom into one of the peaks:
 p_cal = plot(h_cal, st=:step, label="Calibrated spectrum", xlabel="E / keV", xlims=[1440, 1480], size=[800, 400]); # hide
 vline!([1460.830], label="Photon line"); # hide
 savefig("calibration_of_spectrum_zoom.svg"); # hide
+savefig("calibration_of_spectrum_zoom.pdf"); nothing # hide
 ```
-![](calibration_of_spectrum_zoom.svg)
+[![Data](calibration_of_spectrum_zoom.svg)](calibration_of_spectrum_zoom.pdf)
 
 ## Algorithm 
 
