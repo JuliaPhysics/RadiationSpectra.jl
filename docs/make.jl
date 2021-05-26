@@ -4,7 +4,6 @@
 #
 # for local builds.
 
-ENV["GKSwstype"] = "100"
 using Documenter
 using Plots; 
 using RadiationSpectra
