@@ -42,10 +42,10 @@ savefig("only_data_hist.svg"); nothing # hide
 
 Now we want to define the model, which we want to fit to the data. 
 
-The model is a new struct which needs to be subtype of `RadiationSpectra.UvModelDensity{T}`.
+The model is a new struct which needs to be subtype of `RadiationSpectra.UvSpectrumDensity{T}`.
 Here, our model will be a Gaussian (signal) on top of flat offset (background):
 ```@example fitting_hist
-struct MyModel{T} <: RadiationSpectra.UvModelDensity{T}
+struct MyModel{T} <: RadiationSpectra.UvSpectrumDensity{T}
     A::T
     σ::T
     μ::T
@@ -53,7 +53,7 @@ struct MyModel{T} <: RadiationSpectra.UvModelDensity{T}
 end
 ```
 
-Also, a method for the this type for the function `RadiationSpectra.evaluate(d::UvModelDensity, x)`
+Also, a method for the this type for the function `RadiationSpectra.evaluate(d::UvSpectrumDensity, x)`
 has to be defined. Note, that these are supposed to be densities as the returned value 
 are multiplied to the bin width of the corresponding bin in the calculation of the likelihood. 
 ```@example fitting_hist

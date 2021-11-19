@@ -1,10 +1,8 @@
-
-
-function expectation_values(h::StatsBase.Histogram{<:Any, 1}, DT::Type{<:UvModelDensity}, pars) 
-    mps = StatsBase.midpoints(h.edges[1])
-    volumes = [StatsBase.binvolume(h, i) for i in eachindex(mps)]
-    d = DT(pars)
-    [volumes[i] * evaluate(d, mps[i]) for i in eachindex(mps)]
+struct HistLLHPrecalulations{N, WT, MPT, BVT, LGT} 
+    weights::Array{WT, N}
+    midpoints::MPT
+    volumes::BVT
+    logabsgamma::Array{LGT, N}
 end
 
 function log_pdf_poisson(λ::T, k::U, logabsgamma::LAT) where {T, U, LAT}
@@ -17,43 +15,46 @@ function log_pdf_poisson(λ::T, k::U, logabsgamma::LAT) where {T, U, LAT}
     end
 end
 
-struct HistLLHPrecalulations{N, WT, MPT, BVT, LGT} 
-    weights::Array{WT, N}
-    midpoints::MPT
-    volumes::BVT
-    logabsgamma::Array{LGT, N}
-end
-
 function HistLLHPrecalulations(h::Histogram{<:Any, 1})
     T = promote_type(eltype(h.weights), eltype(h.edges[1]))
-    HistLLHPrecalulations( 
+    return HistLLHPrecalulations( 
         h.weights,
         StatsBase.midpoints(h.edges[1]),
         T[StatsBase.binvolume(h, i) for i in eachindex(h.weights)],
-        T[logabsgamma(w + 1)[1] for w in h.weights]  )
+        T[logabsgamma(w + 1)[1] for w in h.weights]
+    )
 end
 
-function loglikelihood(h::HistLLHPrecalulations{1}, DT::Type{<:UvModelDensity}, pars::Vector{PT}, parshape)::PT where PT
-    log_likelihood = zero(PT)
-    d = DT(_par_in_input_form(parshape(pars)))
-    @inbounds for i in eachindex(h.weights)
-        expected_counts = h.volumes[i] * evaluate(d, h.midpoints[i])
-        log_likelihood += log_pdf_poisson(expected_counts, h.weights[i], h.logabsgamma[i])
-    end
-    return log_likelihood
+struct SpectrumDensity{HP <: HistLLHPrecalulations, D <: AbstractSpectrumDistribution}
+    hp::HP
 end
- 
+
+@inline DensityInterface.DensityKind(::SpectrumDensity) = IsDensity()
+function DensityInterface.logdensityof(object::SpectrumDensity{HP, D}, x) where {HP, D}
+    llh = zero(eltype(x))
+    for i in eachindex(object.hp.weights)
+        llh += log_pdf_poisson(object.hp.volumes[i] * evaluate(D(x), object.hp.midpoints[i]), object.hp.weights[i], object.hp.logabsgamma[i]) 
+    end
+    llh
+end
+
+
+
 """
-    # opt_fit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1},
+    # opt_fit(DT::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1},
              p0::AbstractVector, lower_bounds::AbstractVector, upper_bounds::AbstractVector)
 
 Maximum Likelihood Estimation Fit of model density `d` on the histogram `h`.     
 """
-function opt_fit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1},  
+function opt_fit(DT::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1},  
              p0::AbstractVector, lower_bounds::AbstractVector, upper_bounds::AbstractVector,
              parshape::ValueShapes.AbstractValueShape = valshape(p0)) 
     hp = HistLLHPrecalulations(h)
-    f(p::AbstractVector{T}, hp=hp, DT=DT, ps=parshape) where {T} = -loglikelihood(hp, DT, p, ps)::T 
+    function f(p::AbstractVector{T}, hp=hp, ps=parshape) where {T} 
+        x = _par_in_input_form(ps(p))
+        d = SpectrumDensity{typeof(hp), DT}(hp)
+        return -DensityInterface.logdensityof(d, x)
+    end
     opt_result = Optim.optimize( f, promote(lower_bounds, upper_bounds, p0)..., 
         Fminbox(BFGS()); autodiff=:forward )
     # return opt_result.minimizer, opt_result
@@ -62,16 +63,16 @@ end
 
 
 """
-    # opt_fit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1},
+    # opt_fit(DT::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1},
              p0::NamedTuple, lower_bounds::NamedTuple, upper_bounds::NamedTuple)
 
 Maximum Likelihood Estimation Fit of model density `d` on the histogram `h`.     
 """
-function opt_fit(DT::Type{<:UvModelDensity}, h::Histogram{<:Any, 1},
+function opt_fit(DT::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1},
              p0::NamedTuple, 
              lower_bounds::NamedTuple, 
              upper_bounds::NamedTuple, 
-             parshape::AbstractValueShape = valshape(p0))
+             parshape::NamedTupleShape = valshape(p0))
     # flatten parameter and bounds
     flat_p0 = ValueShapes.unshaped(p0, parshape)
     T = eltype(flat_p0)

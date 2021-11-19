@@ -2,22 +2,15 @@ abstract type BATFitBackend <: FitBackend end
 backend_type(::Val{:BAT}) = BATFitBackend
 fit(::Type{BATFitBackend}, args...; kwargs...) = bat_fit(args...; kwargs...)
 
-struct BATHistLLHPrecalulations{H, DT} <: BAT.AbstractDensity
+struct BATSpectrumDensityLLH{H} <: BAT.AbstractDensity
     d::H
 end
-BATHistLLHPrecalulations(d::H, ::Type{DT}) where {H, DT} = BATHistLLHPrecalulations{H, DT}(d)
 
-function BAT.eval_logval_unchecked(d::BATHistLLHPrecalulations{H, DT}, pars) where {H, DT}
-    log_likelihood = zero(eltype(pars))
-    model_dist = DT(pars)
-    @inbounds for i in eachindex(d.d.weights)
-        expected_counts = d.d.volumes[i] * evaluate(model_dist, d.d.midpoints[i])
-        log_likelihood += log_pdf_poisson(expected_counts, d.d.weights[i], d.d.logabsgamma[i])
-    end
-    return log_likelihood
-end
+@inline DensityInterface.DensityKind(::BATSpectrumDensityLLH) = IsDensity()
+DensityInterface.logdensityof(object::BATSpectrumDensityLLH, x) = DensityInterface.logdensityof(object.d, x)
 
-function bat_fit(UvD::Type{<:UvModelDensity}, h::Histogram{<:Any, 1};
+
+function bat_fit(UvD::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1};
             bounds = initial_parameter_guess(UvD, h)[end],
             rng_seed = Philox4x((321, 456)),
             prior = missing,
@@ -28,8 +21,9 @@ function bat_fit(UvD::Type{<:UvModelDensity}, h::Histogram{<:Any, 1};
             strict = true,
             max_ncycles::Int = 1, 
             threshold::Real = 1.1) 
-    hp = BATHistLLHPrecalulations(HistLLHPrecalulations(h), UvD)
-    posterior = BAT.PosteriorDensity(hp, ismissing(prior) ? BAT.DistributionDensity(BAT.NamedTupleDist(bounds)) : prior )
+    hp = HistLLHPrecalulations(h)
+    hd = BATSpectrumDensityLLH(SpectrumDensity{typeof(hp), UvD}(hp))
+    posterior = BAT.PosteriorDensity(hd, ismissing(prior) ? BAT.NamedTupleDist(bounds) : prior )
     posterior_transform = BAT.bat_transform(BAT.PriorToGaussian(), posterior, BAT.PriorSubstitution()).result
     trafo = BAT.trafoof(posterior_transform.likelihood) 
 

@@ -1,5 +1,5 @@
 
-struct NormalPeakUvD{T} <: UvModelDensity{T}
+struct NormalPeakUvD{T} <: UvSpectrumDensity{T}
     # Signal (Normal distribution with area A)
     A::T # Peak area
     UvNormal::Normal{T} # Normal distribution of the peak

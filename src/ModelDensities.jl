@@ -1,9 +1,11 @@
-abstract type AbstractModelDensity{T, N} end
+abstract type AbstractSpectrumDistribution{T, N} end
 
-Base.eltype(d::AbstractModelDensity{T}) where {T} = T
+@inline DensityInterface.DensityKind(::AbstractSpectrumDistribution) = IsDensity()
 
-abstract type UvModelDensity{T} <: AbstractModelDensity{T, 1} end
-abstract type MvModelDensity{T,N} <: AbstractModelDensity{T, N} end
+Base.eltype(d::AbstractSpectrumDistribution{T}) where {T} = T
+
+abstract type UvSpectrumDensity{T} <: AbstractSpectrumDistribution{T, 1} end
+abstract type MvSpectrumDensity{T,N} <: AbstractSpectrumDistribution{T, N} end
 
 function evaluate end
 
