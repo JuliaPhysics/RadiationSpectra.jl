@@ -75,11 +75,11 @@ using RadiationSpectra
         end
     end
 
-    @testset "BAT Backend" begin
-        # ENV["JULIA_DEBUG"] = "BAT"
-        fitted_dist, bat_samples_result = RadiationSpectra.fit(RadiationSpectra.NormalPeakUvD, float(h), backend = :BAT, strict = false)
-        @test isapprox(true_pars[1], fitted_dist.A, rtol = 1e-2)
-        @test isapprox(true_pars[2], fitted_dist.UvNormal.μ, rtol = 1e-2)
-        @test isapprox(true_pars[3], fitted_dist.UvNormal.σ, rtol = 1e-2)
-    end
+    # @testset "BAT Backend" begin
+    #     # ENV["JULIA_DEBUG"] = "BAT"
+    #     fitted_dist, bat_samples_result = RadiationSpectra.fit(RadiationSpectra.NormalPeakUvD, float(h), backend = :BAT, strict = false)
+    #     @test isapprox(true_pars[1], fitted_dist.A, rtol = 1e-2)
+    #     @test isapprox(true_pars[2], fitted_dist.UvNormal.μ, rtol = 1e-2)
+    #     @test isapprox(true_pars[3], fitted_dist.UvNormal.σ, rtol = 1e-2)
+    # end
 end # testset
