@@ -92,14 +92,6 @@ upper_bounds = (A = 30000.0, μ = 131000, σ = 1000, offset = 500)
 nothing # hide
 ```
 
-Note, the package [ValueShapes.jl](https://github.com/oschulz/ValueShapes.jl) can also be used to set individual parameters constant in the fit:
-```@xample
-using ValueShapes
-p0_fix_offset = (A = 4000.0, μ = 129500, σ = 500, offset = ConstValueShape(100)) 
-```
-It is enough to fix the parameter in the initial guess. 
-It is not needed to also use `ConstValueShape` in the bounds. 
-
 ### 4. Performe the fit and plot the result
 
 Now we are ready to performe the fit. 
@@ -133,3 +125,20 @@ savefig("data_hist_plus_fit.svg"); nothing # hide
 ```
 [![Data](data_hist_plus_fit.svg)](data_hist_plus_fit.pdf)
 
+
+### Optional: Fixen certain parameters
+
+The package [ValueShapes.jl](https://github.com/oschulz/ValueShapes.jl) can be used to set individual parameters constant in the fit by defining the shape of parameters. E.g.:
+```@xample fitting_hist
+using ValueShapes
+shape = NamedTupleShape(
+    A = ScalarShape{Real}(),
+    μ = ScalarShape{Real}(),
+    σ = ScalarShape{Real}(),
+    offset = ConstValueShape{Real}(p0.offset),
+)
+```
+The shape has to be passed to the fit function:
+```@example fitting_hist
+fitted_model, backend_result = fit(MyModel, h_sub, p0, lower_bounds, upper_bounds, shape)
+```
