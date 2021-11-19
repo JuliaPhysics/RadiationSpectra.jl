@@ -129,7 +129,7 @@ savefig("data_hist_plus_fit.svg"); nothing # hide
 ### Optional: Fixen certain parameters
 
 The package [ValueShapes.jl](https://github.com/oschulz/ValueShapes.jl) can be used to set individual parameters constant in the fit by defining the shape of parameters. E.g.:
-```@xample fitting_hist
+```@example fitting_hist
 using ValueShapes
 shape = NamedTupleShape(
     A = ScalarShape{Real}(),
