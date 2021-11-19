@@ -9,6 +9,7 @@ module RadiationSpectra
     using LinearAlgebra
     using Statistics
 
+    using DensityInterface
     using EmpiricalDistributions
     using IntervalSets
     using NamedTupleTools

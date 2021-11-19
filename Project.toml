@@ -4,6 +4,7 @@ version = "0.4.3"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+DensityInterface = "b429d917-457f-4dbc-8f4c-0cc954292b1d"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 EmpiricalDistributions = "0bbb1fad-0f24-45fe-94a4-415852c5cc3b"
 IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
