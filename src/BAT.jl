@@ -2,14 +2,6 @@ abstract type BATFitBackend <: FitBackend end
 backend_type(::Val{:BAT}) = BATFitBackend
 fit(::Type{BATFitBackend}, args...; kwargs...) = bat_fit(args...; kwargs...)
 
-struct BATSpectrumDensityLLH{H} <: BAT.AbstractDensity
-    d::H
-end
-
-@inline DensityInterface.DensityKind(::BATSpectrumDensityLLH) = IsDensity()
-DensityInterface.logdensityof(object::BATSpectrumDensityLLH, x) = DensityInterface.logdensityof(object.d, x)
-
-
 function bat_fit(UvD::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1};
             bounds = initial_parameter_guess(UvD, h)[end],
             rng_seed = Philox4x((321, 456)),
@@ -22,8 +14,8 @@ function bat_fit(UvD::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1};
             max_ncycles::Int = 1, 
             threshold::Real = 1.1) 
     hp = HistLLHPrecalulations(h)
-    hd = BATSpectrumDensityLLH(SpectrumDensity{typeof(hp), UvD}(hp))
-    posterior = BAT.PosteriorDensity(hd, ismissing(prior) ? BAT.NamedTupleDist(bounds) : prior )
+    sd = SpectrumDensity{typeof(hp), UvD}(hp)
+    posterior = BAT.PosteriorDensity(sd, ismissing(prior) ? BAT.NamedTupleDist(bounds) : prior )
     posterior_transform = BAT.bat_transform(BAT.PriorToGaussian(), posterior, BAT.PriorSubstitution()).result
     trafo = BAT.trafoof(posterior_transform.likelihood) 
 
