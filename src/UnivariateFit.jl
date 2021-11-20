@@ -25,7 +25,7 @@ function HistLLHPrecalulations(h::Histogram{<:Any, 1})
     )
 end
 
-struct SpectrumDensity{HP <: HistLLHPrecalulations, D <: AbstractSpectrumDistribution}
+struct SpectrumDensity{HP <: HistLLHPrecalulations, D <: UvSpectrumDensity}
     hp::HP
 end
 
