@@ -15,7 +15,7 @@ Here, it is shown exemplary, how a model is defined and how it is fitted to a hi
 ### 1. The Data
 
 The data will be in form of 1D-Histograms. 
-In this example, the histogram is a small subhistogram around a peak in the uncalibratum spectrum of
+In this example, the histogram is a small subhistogram around a peak in the uncalibrated spectrum of
 a germanium detector. 
 
 ```@example fitting_hist
@@ -40,9 +40,9 @@ savefig("only_data_hist.svg"); nothing # hide
 
 ### 2. User Defined Spectrum Density
 
-Now we want to define the model, which we want to fit to the data. 
+Now we want to define the density, which we want to fit to the data. 
 
-The model is a new struct which needs to be subtype of `RadiationSpectra.UvSpectrumDensity{T}`.
+It is a new `struct` which needs to be subtype of `RadiationSpectra.UvSpectrumDensity{T}`.
 Here, our model will be a Gaussian (signal) on top of flat offset (background):
 ```@example fitting_hist
 struct CustomSpectrumDensity{T} <: RadiationSpectra.UvSpectrumDensity{T}
@@ -80,10 +80,10 @@ nothing # hide
 ### 3. Set up Initial Guess and Bounds of the Parameters
 
 Either a maximum likelihood estimation (MLE) (default) or and bayesian fit can be performed. 
-In the maximum likehihood fit the package [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) is used to maximimze the likelihood. 
+In the maximum likelihood fit the package [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) is used to maximize the likelihood. 
 The bayesian fit is performed via the [BAT.jl](https://github.com/bat/BAT.jl) package.
 
-In order to performe the MLE an initial guess, lower bounds and upper bounds for the parameter have to be given:
+In order to perform the MLE an initial guess, lower bounds and upper bounds for the parameter have to be given:
 
 ```@example fitting_hist
 p0 = (A = 4000.0, μ = 129500, σ = 500, offset = 100) 
@@ -92,14 +92,14 @@ upper_bounds = (A = 30000.0, μ = 131000, σ = 1000, offset = 500)
 nothing # hide
 ```
 
-### 4. Performe the Fit
+### 4. Perform the Fit
 
-Now we are ready to performe the fit. 
+Now we are ready to perform the fit. 
 The syntax follows the syntax of the `fit` function of 
 [StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) and 
 [Distributions.jl](https://github.com/JuliaStats/Distributions.jl):
 `fit(::Type{Model}, data)::Model`.
-Here, the Model will by our just defined model `CustomSpectrumDensity` and the data will be the histogrom `h_sub`.
+Here, the Model will by our just defined model `CustomSpectrumDensity` and the data will be the histogram `h_sub`.
 Also the initial guess and bounds have to be parsed as additional arguments:
 
 ```@example fitting_hist
@@ -109,14 +109,14 @@ fitted_dens, backend_result = fit(CustomSpectrumDensity, h_sub, p0, lower_bounds
 The first returned argument, `fitted_dens`, is an instance of `CustomSpectrumDensity` with the fitted parameters. 
 
 The second returned argument, `backend_result`, is, in case of a MLE fit, the returned object of the optimizer 
-of [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) used to performe the maximization of the likelihood. 
+of [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) used to perform the maximization of the likelihood. 
 In case of a bayesian fit, via [`BAT.jl`](https://github.com/bat/BAT.jl) as fit backend, the second argument would be samples from BAT.jl.
 
 
 ### 5. Plot the fitted Density:
 
 The package provides a simple plot recipe to plot the fitted density on top of the data
-through the defined `evaluate` method and the stepsize of the histogram:
+through the defined `evaluate` method and the binning of the histogram:
 
 ```@example fitting_hist
 plot(h_sub, st=:step, size=(800,400), label="Spectrum");
