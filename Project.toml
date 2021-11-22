@@ -22,12 +22,24 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 ValueShapes = "136a8f8c-c49b-4edb-8b98-f3d64d48be8f"
 
 [compat]
+DensityInterface = "0.4"
+Distributions = "0.25"
+EmpiricalDistributions = "0.3"
+IntervalSets = "0.5"
+NamedTupleTools = "0.13"
+Optim = "1"
+Random123 = "1"
+RecipesBase = "1"
+Requires = "1"
+SpecialFunctions = "1"
+StaticArrays = "1"
+StaticUnivariatePolynomials = "0.6"
+StatsBase = "0.33"
+ValueShapes = "0.9"
 julia = "1.6"
 
 [extras]
-BAT = "c0cd4b16-88b7-57fa-983b-ab80aecada7e"
-IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "IntervalSets", "BAT"]
+test = ["Test"]
