@@ -1,11 +1,11 @@
 # Use
 #
-#     DOCUMENTER_DEBUG=true julia --color=yes make.jl local [fixdoctests]
+#     DOCUMENTER_DEBUG=true julia --color=yes make.jl local [nonstrict] [fixdoctests]
 #
 # for local builds.
 
 using Documenter
-using Plots
+using Plots; 
 using RadiationSpectra
 
 makedocs(
@@ -24,7 +24,7 @@ makedocs(
     doctest = ("fixdoctests" in ARGS) ? :fix : true,
     format = Documenter.HTML(canonical = "https://JuliaPhysics.github.io/RadiationSpectra.jl/stable/", prettyurls = !("local" in ARGS)),
     linkcheck = ("linkcheck" in ARGS),
-    strict = !("local" in ARGS),
+    strict = !("nonstrict" in ARGS),
 )
 
 deploydocs(
