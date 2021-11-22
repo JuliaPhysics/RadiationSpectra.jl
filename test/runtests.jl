@@ -6,7 +6,7 @@ using StatsBase
 using IntervalSets
 using ValueShapes
 
-using BAT
+# using BAT
 using RadiationSpectra
 
 @testset "Package RadiationSpectra" begin
