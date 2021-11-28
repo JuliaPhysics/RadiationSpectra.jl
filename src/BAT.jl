@@ -50,6 +50,6 @@ function bat_fit(UvD::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1};
                 )
             ).result
         )
-    return UvD(mode(bat_samples)[1]), bat_samples
+    return UvD(mode(bat_samples)), bat_samples
 end
 
