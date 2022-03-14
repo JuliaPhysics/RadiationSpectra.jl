@@ -4,7 +4,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
       - 'releases/**'
     tags: '*'
   pull_request:
