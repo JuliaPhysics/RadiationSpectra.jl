@@ -17,6 +17,11 @@ end
 
 function HistLLHPrecalulations(h::Histogram{<:Any, 1})
     T = promote_type(eltype(h.weights), eltype(h.edges[1]))
+    @assert all(isinteger, h.weights) """
+        Histogram has non-integer weights. 
+        This can not be as the Poisson distribution, the underlying likehood for the bins,
+        needs discrete numbers.
+    """
     return HistLLHPrecalulations( 
         h.weights,
         StatsBase.midpoints(h.edges[1]),
