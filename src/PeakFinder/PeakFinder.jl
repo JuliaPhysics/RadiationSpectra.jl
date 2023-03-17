@@ -363,7 +363,7 @@ function peakfinder(source::AbstractArray; σ::Real=2., threshold::Real=10., bac
         destVector[i+1] = working_space[i + shift + 1]
     end
     fNPeaks = peak_index
-    if (peak_index == fMaxPeaks) warn("Peak buffer full", prefix="Warning: SearchHighRes -> ") end
+    if (peak_index == fMaxPeaks) @warn("Peak buffer full in SearchHighRes -> ") end
 
     return destVector, fPositionX[1:fNPeaks]
 end
