@@ -24,7 +24,7 @@ makedocs(
     doctest = ("fixdoctests" in ARGS) ? :fix : true,
     format = Documenter.HTML(canonical = "https://JuliaPhysics.github.io/RadiationSpectra.jl/stable/", prettyurls = !("local" in ARGS)),
     linkcheck = ("linkcheck" in ARGS),
-    strict = !("nonstrict" in ARGS),
+    warnonly = ("nonstrict" in ARGS),
 )
 
 deploydocs(
