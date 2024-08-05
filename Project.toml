@@ -1,6 +1,6 @@
 name = "RadiationSpectra"
 uuid = "4f207c7e-01da-51d7-a1a0-c8c06dd1d883"
-version = "0.5.9"
+version = "0.5.10"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
