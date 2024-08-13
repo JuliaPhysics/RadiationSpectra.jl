@@ -72,20 +72,47 @@ function determine_calibration_constant_through_peak_ratios(fPositionX::Array{<:
 end
 
 function _filter_peaks_from_peakfinder(h::Histogram{<:Real, 1}, peakPositions::Vector{T}, σ::Real) where {T <: Real}
-    pfits = []
-    for p in peakPositions
-        fitrange = (p - 5σ*step(h.edges[1]), p + 5σ*step(h.edges[1]))
-        d = fit(NormalPeakUvD, subhist(h, fitrange))[1]
-        push!(pfits, d)
+    pfits = Vector{@NamedTuple{μ::Real, σ::Real}}(undef, length(peakPositions))
+    success =  Bool.(zeros(length(peakPositions)))
+    Threads.@threads for ipf in eachindex(peakPositions)
+        p = peakPositions[ipf]
+        try
+            searchrange = (p - 10σ*step(h.edges[1]), p + 10σ*step(h.edges[1]))
+            h_search = subhist(h, searchrange)
+            # find peak
+            cts_argmax = mapslices(argmax, h_search.weights, dims=1)[1]
+            cts_max    = h_search.weights[cts_argmax]
+            μ = getindex(h_search.edges[1], cts_argmax)
+
+            # find FWHM of peak by interpolation of the two points at which the peak drops below half of its maximum
+            threshold = 0.5
+            left_peak_weights = h_search.weights[1:cts_argmax]
+            cut_left_arg  = findfirst(idx -> left_peak_weights[idx] >= threshold*cts_max && all(left_peak_weights[idx+1:end] .> left_peak_weights[idx]), eachindex(left_peak_weights))
+            left_point1 = (getindex(h_search.edges[1], ifelse(cut_left_arg == 1, cut_left_arg + 1, cut_left_arg -1 )), h_search.weights[ifelse(cut_left_arg == 1, cut_left_arg + 1, cut_left_arg -1 )]) 
+            left_point_2 = (getindex(h_search.edges[1], cut_left_arg), h_search.weights[cut_left_arg])
+            cut_left = _interpolate_linear(left_point1, left_point_2; threshold=threshold)
+            right_peak_weights = h_search.weights[cts_argmax:end]
+            cut_right_arg = findfirst(idx -> right_peak_weights[idx] <= threshold*cts_max && all(right_peak_weights[idx+1:end] .< right_peak_weights[idx]), eachindex(right_peak_weights)) + cts_argmax - 1
+            right_point1 = (getindex(h_search.edges[1], cut_right_arg-1), h_search.weights[cut_right_arg-1])
+            right_point2 = (getindex(h_search.edges[1], cut_right_arg), h_search.weights[cut_right_arg])
+            cut_right = _interpolate_linear(right_point1, right_point2; threshold=threshold)
+            σ = (cut_right -  cut_left) * inv(2*√(2log(2)))
+            success[ipf] = true
+            pfits[ipf] = (μ = μ, σ = σ)
+        catch e
+            @debug "Error filter peak at $p: $e"
+        end
     end
-    d = map(i -> abs(pfits[i].UvNormal.μ - peakPositions[i]), eachindex(peakPositions));
-    σs = map(f -> f.UvNormal.σ, pfits);   
+    pfits = pfits[success]
+    peakPositions = peakPositions[success]
+    d = map(i -> abs(pfits[i].μ - peakPositions[i]), eachindex(peakPositions));
+    σs = map(f -> f.σ, pfits);   
     hd = harmmean(d);
     hσ = harmmean(σs);
     accepted_peakPositions = T[]
     for (ipf, pf) in enumerate(pfits)
-        if d[ipf] < 4 * hd && abs(pf.UvNormal.σ) < 2hσ
-            push!(accepted_peakPositions, pf.UvNormal.μ)
+        if d[ipf] < 4 * hd && abs(pf.σ) < 2hσ
+            push!(accepted_peakPositions, pf.μ)
         end
     end
     accepted_peakPositions

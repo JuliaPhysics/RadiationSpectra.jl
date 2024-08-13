@@ -28,3 +28,17 @@ function subhist(h::Histogram{<:Any, 1}, r::Tuple{<:Real,<:Real})
     Histogram(h.edges[1][first_bin:last_bin+1], h.weights[first_bin:last_bin])
 end
 subhist(h, i::Interval) = subhist(h, (i.left, i.right))
+
+
+"""
+    _interpolate_linear(point1::Tuple{Real, Real}, point2::Tuple{Real, Real}; threshold::Real = 0.5)
+
+Interpolate a point between two points `point1` and `point2` using a linear interpolation.
+"""
+function _interpolate_linear(point1::Tuple{Real, Real}, point2::Tuple{Real, Real}; threshold::Real = 0.5)
+    x1, y1 = point1
+    x2, y2 = point2 
+    m = (y2 - y1) / (x2 - x1)
+    b = y1 - m * x1
+    (threshold - b) / m
+end
