@@ -122,17 +122,42 @@ end
 function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1};
             min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 5 * length(photon_lines), threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3) where {E}
     h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
-    fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
+    fitted_peak_Positions_orig = _filter_peaks_from_peakfinder(h, peakPositions, σ)
+    threshold_reduced = threshold
+    fitted_peak_Positions = fitted_peak_Positions_orig
     while length(fitted_peak_Positions) > max_n_peaks
-        threshold *= 1.1
-        h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
+        threshold_reduced *= 1.1
+        if threshold_reduced > 70.0
+            throw(ErrorExecption("Found too many peaks in the spectrum."))
+        end
+        h_deconv, peakPositions = peakfinder(h, threshold=threshold_reduced, σ = σ)
         fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
     end
     while length(fitted_peak_Positions) < min_n_peaks
-        threshold *= 0.75
-        h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
+        threshold_reduced *= 0.75
+        if threshold_reduced < 0.5
+            @warn "Could not find enough peaks in the spectrum."
+            break
+        end
+        h_deconv, peakPositions = peakfinder(h, threshold=threshold_reduced, σ = σ)
         fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
     end
+    if length(fitted_peak_Positions) < min_n_peaks
+        threshold_reduced = threshold
+        h_deconv, fitted_peak_Positions = peakfinder(h, threshold=threshold_reduced, σ = σ)
+        while length(fitted_peak_Positions) < min_n_peaks
+            threshold_reduced *= 0.75
+            if threshold_reduced < 0.5
+                @warn "Could not find enough peaks in the spectrum."
+                break
+            end
+            h_deconv, fitted_peak_Positions = peakfinder(h, threshold=threshold_reduced, σ = σ)
+        end
+    end
+    if length(fitted_peak_Positions) < min_n_peaks
+        throw(ErrorException("Could not find enough peaks in the spectrum."))
+    end
+    @debug "Found peak positions at: $fitted_peak_Positions"
     c = determine_calibration_constant_through_peak_ratios(peakPositions, photon_lines, α = α, rtol = rtol)
     return c, h_deconv, peakPositions, threshold
 end
