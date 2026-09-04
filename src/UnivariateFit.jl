@@ -61,7 +61,7 @@ function opt_fit(DT::Type{<:UvSpectrumDensity}, h::Histogram{<:Any, 1},
         return -DensityInterface.logdensityof(d, x)
     end
     opt_result = Optim.optimize( f, promote(lower_bounds, upper_bounds, p0)..., 
-        Fminbox(BFGS()); autodiff=:forward )
+        Fminbox(BFGS()); autodiff=AutoForwardDiff() )
     # return opt_result.minimizer, opt_result
     return DT(_par_in_input_form(parshape(opt_result.minimizer))), opt_result
 end

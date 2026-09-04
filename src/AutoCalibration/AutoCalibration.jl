@@ -192,7 +192,7 @@ function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real
         _linear_function_fixed_offset_at_zero, 
         Float64[0], Float64[Inf], Float64[c_pre], 
         Fminbox(BFGS()); 
-        autodiff=:forward )
+        autodiff=AutoForwardDiff() )
     
     c = opt_result.minimizer[1]
 

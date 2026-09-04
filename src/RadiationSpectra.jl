@@ -9,8 +9,10 @@ module RadiationSpectra
     using LinearAlgebra
     using Statistics
 
+    using ADTypes: AutoForwardDiff
     using DensityInterface
     using EmpiricalDistributions
+    using ForwardDiff
     using IntervalSets
     using NamedTupleTools
     using Optim
