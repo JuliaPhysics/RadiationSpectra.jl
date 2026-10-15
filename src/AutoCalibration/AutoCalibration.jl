@@ -73,51 +73,42 @@ end
 
 function _filter_peaks_from_peakfinder(h::Histogram{<:Real, 1}, peakPositions::Vector{T}, σ::Real) where {T <: Real}
     pfits = Vector{@NamedTuple{μ::Real, σ::Real}}(undef, length(peakPositions))
-    success =  Bool.(zeros(length(peakPositions)))
+    success = zeros(Bool, length(peakPositions))
     Threads.@threads for ipf in eachindex(peakPositions)
         p = peakPositions[ipf]
         try
             searchrange = (p - 10σ*step(h.edges[1]), p + 10σ*step(h.edges[1]))
             h_search = subhist(h, searchrange)
-            # find peak
-            cts_argmax = mapslices(argmax, h_search.weights, dims=1)[1]
-            cts_max    = h_search.weights[cts_argmax]
-            μ = getindex(h_search.edges[1], cts_argmax)
-
-            # find FWHM of peak by interpolation of the two points at which the peak drops below half of its maximum
-            threshold = 0.5
-            left_peak_weights = h_search.weights[1:cts_argmax]
-            cut_left_arg  = findfirst(idx -> left_peak_weights[idx] >= threshold*cts_max && all(left_peak_weights[idx+1:end] .> left_peak_weights[idx]), eachindex(left_peak_weights))
-            left_point1 = (getindex(h_search.edges[1], ifelse(cut_left_arg == 1, cut_left_arg + 1, cut_left_arg -1 )), h_search.weights[ifelse(cut_left_arg == 1, cut_left_arg + 1, cut_left_arg -1 )]) 
-            left_point_2 = (getindex(h_search.edges[1], cut_left_arg), h_search.weights[cut_left_arg])
-            cut_left = _interpolate_linear(left_point1, left_point_2; threshold=threshold)
-            right_peak_weights = h_search.weights[cts_argmax:end]
-            cut_right_arg = findfirst(idx -> right_peak_weights[idx] <= threshold*cts_max && all(right_peak_weights[idx+1:end] .< right_peak_weights[idx]), eachindex(right_peak_weights)) + cts_argmax - 1
-            right_point1 = (getindex(h_search.edges[1], cut_right_arg-1), h_search.weights[cut_right_arg-1])
-            right_point2 = (getindex(h_search.edges[1], cut_right_arg), h_search.weights[cut_right_arg])
-            cut_right = _interpolate_linear(right_point1, right_point2; threshold=threshold)
-            σ = (cut_right -  cut_left) * inv(2*√(2log(2)))
+            weights = h_search.weights
+            imax = argmax(weights)
+            centers = StatsBase.midpoints(h_search.edges[1])
+            background = min(first(weights), last(weights))
+            half_height = background + (weights[imax] - background) / 2
+            weights[imax] > half_height || continue
+            left = findlast(<=(half_height), view(weights, 1:imax-1))
+            right_offset = findfirst(<=(half_height), view(weights, imax+1:length(weights)))
+            (isnothing(left) || isnothing(right_offset)) && continue
+            right = imax + right_offset
+            # Interpolate the half-height crossings between the bracketing bins.
+            cut_left = _interpolate_linear((centers[left], weights[left]), (centers[left+1], weights[left+1]); threshold=half_height)
+            cut_right = _interpolate_linear((centers[right-1], weights[right-1]), (centers[right], weights[right]); threshold=half_height)
+            peak_σ = (cut_right - cut_left) / (2 * √(2log(2)))
             success[ipf] = true
-            pfits[ipf] = (μ = μ, σ = σ)
+            pfits[ipf] = (μ=centers[imax], σ=peak_σ)
         catch e
             @debug "Error filter peak at $p: $e"
         end
     end
     pfits = pfits[success]
     peakPositions = peakPositions[success]
-    d = map(i -> abs(pfits[i].μ - peakPositions[i]), eachindex(peakPositions));
-    σs = map(f -> f.σ, pfits);   
-    hd = harmmean(d);
-    hσ = harmmean(σs);
-    accepted_peakPositions = T[]
-    for (ipf, pf) in enumerate(pfits)
-        if d[ipf] < 4 * hd && abs(pf.σ) < 2hσ
-            push!(accepted_peakPositions, pf.μ)
-        end
-    end
-    accepted_peakPositions
+    isempty(peakPositions) && return T[]
+    d = [abs(pfits[i].μ - peakPositions[i]) for i in eachindex(peakPositions)]
+    σs = [f.σ for f in pfits]
+    hd, hσ = harmmean(d), harmmean(σs)
+    # A peak exactly on a bin center makes the harmonic mean distance zero, so allow at least one bin.
+    distance_limit = max(4hd, step(h.edges[1]))
+    return peakPositions[(d .<= distance_limit) .& (σs .< 2hσ)]
 end
-
 
 function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1};
             min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 5 * length(photon_lines), threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3) where {E}
