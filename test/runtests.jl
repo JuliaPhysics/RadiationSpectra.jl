@@ -62,6 +62,8 @@ using RadiationSpectra
         @test fitted_dist.offset == p0.offset
     end
 
+    include("autocalibration.jl")
+
     @testset "Auto Calibration" begin
         h_uncal = RadiationSpectra.get_example_spectrum()
 
