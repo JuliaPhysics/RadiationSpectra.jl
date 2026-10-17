@@ -194,47 +194,60 @@ function _filter_peaks_from_peakfinder(h::Histogram{<:Real, 1}, peakPositions::V
     return peakPositions[(d .<= distance_limit) .& (σs .< 2hσ)]
 end
 
-function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1, E}, photon_lines::Array{<:Real, 1};
-            min_n_peaks::Int = length(photon_lines), max_n_peaks::Int = 5 * length(photon_lines), threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3) where {E}
-    h_deconv, peakPositions = peakfinder(h, threshold=threshold, σ = σ)
-    fitted_peak_Positions_orig = _filter_peaks_from_peakfinder(h, peakPositions, σ)
-    threshold_reduced = threshold
-    fitted_peak_Positions = fitted_peak_Positions_orig
-    while length(fitted_peak_Positions) > max_n_peaks
-        threshold_reduced *= 1.1
-        if threshold_reduced > 70.0
-            throw(ErrorExecption("Found too many peaks in the spectrum."))
+"""
+    determine_calibration_constant_through_peak_ratios(h::Histogram, photon_lines; kwargs...)
+
+Estimate the calibration constant `c` in `energy = c * position` from the ratios of the peak
+positions in `h` and of the reference lines `photon_lines`.
+
+Returns `(c, h_deconv, peak_positions, threshold)`: the calibration constant, the deconvolved
+spectrum, the raw peak-finder positions at the selected `threshold` (strongest first) and that
+threshold. Takes the keyword arguments of [`calibrate_spectrum`](@ref), except that `threshold`
+defaults to 10 and `max_n_peaks` to `5 * length(photon_lines)`.
+"""
+function determine_calibration_constant_through_peak_ratios(h::Histogram{<:Real, 1}, photon_lines::Array{<:Real, 1};
+            min_n_peaks::Int = _default_min_n_matches(length(photon_lines)), max_n_peaks::Int = 5 * length(photon_lines),
+            threshold::Real = 10., α::Real = 0.01, σ::Real = 3.0, rtol::Real = 5e-3,
+            min_n_matches::Int = min(min_n_peaks, _default_min_n_matches(length(photon_lines))), min_match_span::Real = _default_min_match_span(min_n_matches))
+    best = discover_calibration(h, photon_lines; min_n_peaks, max_n_peaks, threshold, α, σ, rtol, min_n_matches, min_match_span)
+    return best.c, best.h_deconv, best.positions, best.threshold
+end
+
+# Peak-finder thresholds from `threshold` down to 0.5, each three quarters of the previous one.
+function _threshold_sequence(threshold::Real)
+    0 < threshold < 100 || throw(ArgumentError("threshold must be between 0 and 100"))
+    thresholds = Float64[threshold]
+    while last(thresholds) > 0.5
+        push!(thresholds, max(0.5, 0.75 * last(thresholds)))
+    end
+    return thresholds
+end
+
+# Shared by the ratio method and `calibrate_spectrum`, which also needs the matched lines.
+function discover_calibration(h, photon_lines; min_n_peaks, max_n_peaks, threshold, α, σ, rtol, min_n_matches, min_match_span)
+    min_n_peaks >= 2 || throw(ArgumentError("min_n_peaks must be at least 2"))
+    max_n_peaks >= min_n_matches || throw(ArgumentError("max_n_peaks must be at least min_n_matches"))
+    _check_matching_arguments(length(photon_lines); rtol, min_n_matches, min_match_span)
+    two_match = min_n_matches <= 2
+    solutions = @NamedTuple{c::Float64, n_matches::Int, score::Float64, matched_lines::Vector{Float64}, threshold::Float64, positions::Vector{Float64}, h_deconv::Histogram}[]
+    # Two-match searches try the shape-filtered peaks first and stop at the first threshold with a solution,
+    # where all peaks compete for the gain. Searches for more matches use all peaks of all thresholds.
+    for filter_peaks in (two_match ? (true, false) : (false,)), threshold_reduced in _threshold_sequence(threshold)
+        h_deconv, peakPositions = peakfinder(h; threshold=threshold_reduced, σ)
+        length(peakPositions) >= min_n_peaks || continue
+        all_peaks = first(peakPositions, max_n_peaks)
+        candidates = filter_peaks ? first(_filter_peaks_from_peakfinder(h, peakPositions, σ), max_n_peaks) : all_peaks
+        found = calibration_solutions(candidates, photon_lines; α, rtol, min_n_matches, min_match_span)
+        filter_peaks && !isempty(found) && append!(found, calibration_solutions(all_peaks, photon_lines; α, rtol, min_n_matches, min_match_span))
+        @debug "Calibration discovery" threshold=threshold_reduced filter_peaks n_raw=length(peakPositions) n_candidates=length(candidates) n_solutions=length(found)
+        for candidate in found
+            push!(solutions, (; candidate..., threshold=Float64(threshold_reduced), positions=peakPositions, h_deconv))
         end
-        h_deconv, peakPositions = peakfinder(h, threshold=threshold_reduced, σ = σ)
-        fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
+        two_match && !isempty(found) && break
     end
-    while length(fitted_peak_Positions) < min_n_peaks
-        threshold_reduced *= 0.75
-        if threshold_reduced < 0.5
-            @warn "Could not find enough peaks in the spectrum."
-            break
-        end
-        h_deconv, peakPositions = peakfinder(h, threshold=threshold_reduced, σ = σ)
-        fitted_peak_Positions = _filter_peaks_from_peakfinder(h, peakPositions, σ)
-    end
-    if length(fitted_peak_Positions) < min_n_peaks
-        threshold_reduced = threshold
-        h_deconv, fitted_peak_Positions = peakfinder(h, threshold=threshold_reduced, σ = σ)
-        while length(fitted_peak_Positions) < min_n_peaks
-            threshold_reduced *= 0.75
-            if threshold_reduced < 0.5
-                @warn "Could not find enough peaks in the spectrum."
-                break
-            end
-            h_deconv, fitted_peak_Positions = peakfinder(h, threshold=threshold_reduced, σ = σ)
-        end
-    end
-    if length(fitted_peak_Positions) < min_n_peaks
-        throw(ErrorException("Could not find enough peaks in the spectrum."))
-    end
-    @debug "Found peak positions at: $fitted_peak_Positions"
-    c = determine_calibration_constant_through_peak_ratios(peakPositions, photon_lines, α = α, rtol = rtol)
-    return c, h_deconv, peakPositions, threshold
+    best = select_calibration_solution(solutions; rtol, min_n_matches)
+    @debug "Calibration selected" threshold=best.threshold n_raw=length(best.positions) n_matches=best.n_matches relative_rms=sqrt(best.score)
+    return best
 end
 
 function determine_calibration_constant_through_peak_fitting(h::Histogram{<:Real, 1, E}, photon_lines::Vector{<:Real}, c_pre::Real=1.0) where {E}
@@ -276,31 +289,43 @@ end
 
 
 """
-    calibrate_spectrum(h_uncal::Histogram, photon_lines::Array{Real, 1}; <keyword arguments>)
+    calibrate_spectrum(h_uncal::Histogram, photon_lines::Vector{<:Real}; kwargs...)
 
-Returns the calibrated histogram, the deconvoluted spectrum, the found (uncalibrated) peak positions and the final `threshold` value.
+Calibrate the spectrum `h_uncal` with `energy = c * position`. Peaks are found with `peakfinder`
+and matched to the reference lines `photon_lines` through the ratios of their positions, then `c`
+is refined from the positions of Gaussian peaks on a linear background fitted to the matched lines.
+
+Returns `(h_cal, h_deconv, peak_positions, threshold, c, c_precal)`: the calibrated histogram,
+the deconvolved spectrum, the raw peak-finder positions at the selected `threshold` (strongest
+first), that threshold, the fitted calibration constant and its estimate from the peak ratios.
 
 # Keywords
-- `σ::Real = 2.0`: The expected sigma of a peak in the spectrum. In units of bins.
-- `threshold::Real = 10.0`: Threshold for being identified as a peak in the deconvoluted spectrum. A single bin is identified as a peak when its weight exceeds the `threshold` and the previous bin was not identified as an peak.
-- `min_n_peaks::Int = 0`: If the number of found peaks is smaller than `min_n_peaks` the functions lowers the parameter `threshold` until enough peaks are found.
-- `max_n_peaks::Int = 50`: Use only the first (strongest) `max_n_peaks` peaks for peak identification.
-- `α::Real = 0.005`:  = 0.5%. Acceptance level in the comparison of the peak position ratios in the peak indentification step. When the difference between the ratio of two found peak positions and the ratio of two photon lines (`photon_lines`) is smaller than `α`, the found peaks are identified as the two photon lines.
-- `rtol::Real = 5e-3`:  = 5e-3. Acceptance level for tolerance of the absolute difference between true and found line position.
+- `σ::Real = 3.0`: expected standard deviation of the peaks in bins.
+- `threshold::Real = 50.0`: initial peak-finder threshold in percent, in `(0, 100)`. It is lowered by a quarter per step and finally to 0.5 to find weaker peaks.
+- `min_n_peaks::Int`: minimum number of peaks the peak finder has to report, at least 2. Defaults to 2 for two reference lines, 3 for three or four, and 4 for more. Also caps the default `min_n_matches`.
+- `max_n_peaks::Int = 4 * length(photon_lines)`: only the strongest `max_n_peaks` peaks (after the shape filter of two-match searches) take part in the matching. Must be at least `min_n_matches` and does not truncate the returned positions.
+- `min_n_matches::Int`: minimum number of reference lines that must be matched, at least 2. Defaults to the same values as `min_n_peaks`, capped by it.
+- `min_match_span::Real = min_n_matches <= 2 ? 0.0 : 0.5`: minimum energy range of the matched lines as a fraction of the range of `photon_lines`, in `[0, 1]`.
+- `α::Real = 0.01`: relative tolerance when comparing the ratio of two peak positions with the ratio of two reference lines.
+- `rtol::Real = 5e-3`: maximum relative residual `abs(c * position - line) / line` of a matched peak, in `[0, 1)`. Keep it small to tell nearby lines apart.
 
-Calibrate the spectrum `h_uncal`. This is done by:
-1) finding peaks through devoncolution
-2) identifying them through comparison of the ratios of their positions with the ratios of the known `lines`
-3) fitting all identified peaks (with a gaussian plus first order polynomial) to get their position more precisely
-4) performe a linear fit (offset forced to 0) of these positions vs the true positions (`lines`) to get the calibration constant
+Of the solutions found, the one with the most matched lines wins, then the one found at the
+highest threshold, then the one with the smallest residuals. With more than two required matches,
+a competing gain with comparable support at the selected threshold raises an error. Two-match
+searches stop at the first threshold at which the shape-filtered peaks yield a solution, with all
+peaks of that threshold competing for the gain, and fall back to all peaks of every threshold if
+the filtered peaks never yield one. Lines missing from the spectrum are tolerated as long as
+`min_n_peaks`, `min_n_matches` and `min_match_span` are met, so lower `min_match_span` when the
+lines expected in the spectrum cover only a small part of the range of `photon_lines`.
 """
-function calibrate_spectrum(h_uncal::Histogram{<:Real, 1}, photon_lines::Vector{<:Real}; 
-            σ::Real = 3.0, threshold::Real = 50.0, min_n_peaks::Int = length(photon_lines), 
-            max_n_peaks::Int = 4 * length(photon_lines), α::Real = 0.01, rtol::Real = 5e-3)
-    c_precal, h_deconv, peakPositions, threshold = determine_calibration_constant_through_peak_ratios(h_uncal, photon_lines, 
-                                min_n_peaks = min_n_peaks, max_n_peaks = max_n_peaks, threshold=threshold, α=α, σ=σ, rtol=rtol)
-    c = determine_calibration_constant_through_peak_fitting(h_uncal, photon_lines, c_precal)[1]
-    h_cal = Histogram( h_uncal.edges[1] .* c, :left )
+function calibrate_spectrum(h_uncal::Histogram{<:Real, 1}, photon_lines::Vector{<:Real};
+            σ::Real = 3.0, threshold::Real = 50.0, min_n_peaks::Int = _default_min_n_matches(length(photon_lines)),
+            max_n_peaks::Int = 4 * length(photon_lines), α::Real = 0.01, rtol::Real = 5e-3,
+            min_n_matches::Int = min(min_n_peaks, _default_min_n_matches(length(photon_lines))), min_match_span::Real = _default_min_match_span(min_n_matches))
+    best = discover_calibration(h_uncal, photon_lines; min_n_peaks, max_n_peaks, threshold, α, σ, rtol, min_n_matches, min_match_span)
+    c_precal = best.c
+    c = determine_calibration_constant_through_peak_fitting(h_uncal, best.matched_lines, c_precal)[1]
+    h_cal = Histogram(h_uncal.edges[1] .* c, :left)
     h_cal.weights = h_uncal.weights
-    return h_cal, h_deconv, peakPositions, threshold, c, c_precal
+    return h_cal, best.h_deconv, best.positions, best.threshold, c, c_precal
 end
