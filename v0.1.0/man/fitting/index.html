@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Fitting · RadiationSpectra.jl</title><link rel="canonical" href="https://JuliaHEP.github.io/RadiationSpectra.jl/stable/man/fitting/index.html"/><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link href="../../assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>RadiationSpectra.jl</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="../../search/"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li><a class="toctext" href="../../">Home</a></li><li><span class="toctext">Manual</span><ul><li><a class="toctext" href="../spectrum_deconvolution/">Peak Finding</a></li><li class="current"><a class="toctext" href>Fitting</a><ul class="internal"><li><a class="toctext" href="#Likelihood-(LLH)-Fit-1D-Histogram-1"><code>Likelihood (LLH) Fit - 1D-Histogram</code></a></li><li><a class="toctext" href="#LSQ-Fit-1D-Histogram-1"><code>LSQ Fit - 1D-Histogram</code></a></li><li><a class="toctext" href="#LSQ-Fit-1D-Data-Arrays-1"><code>LSQ Fit - 1D-Data Arrays</code></a></li></ul></li><li><a class="toctext" href="../spectrum_calibration/">Calibration</a></li></ul></li><li><a class="toctext" href="../../api/">API</a></li><li><a class="toctext" href="../../LICENSE/">LICENSE</a></li></ul></nav><article id="docs"><header><nav><ul><li>Manual</li><li><a href>Fitting</a></li></ul><a class="edit-page" href="https://github.com/JuliaHEP/RadiationSpectra.jl/blob/master/docs/src/man/fitting.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>Fitting</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="Fitting-1" href="#Fitting-1">Fitting</a></h1><ul><li><a href="#Fitting-1">Fitting</a></li><ul><li><a href="#Likelihood-(LLH)-Fit-1D-Histogram-1"><code>Likelihood (LLH) Fit - 1D-Histogram</code></a></li><li><a href="#LSQ-Fit-1D-Histogram-1"><code>LSQ Fit - 1D-Histogram</code></a></li><li><a href="#LSQ-Fit-1D-Data-Arrays-1"><code>LSQ Fit - 1D-Data Arrays</code></a></li></ul></ul><h2><a class="nav-anchor" id="Likelihood-(LLH)-Fit-1D-Histogram-1" href="#Likelihood-(LLH)-Fit-1D-Histogram-1"><code>Likelihood (LLH) Fit - 1D-Histogram</code></a></h2><ol><li>Get a spectrum and find a peak to fit</li></ol><pre><code class="language-">using Plots, RadiationSpectra, StatsBase
+myfont = Plots.font(12) # hide
+pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
+
+h_uncal = RadiationSpectra.get_example_spectrum()
+h_decon, peakpos = RadiationSpectra.peakfinder(h_uncal)
+
+strongest_peak_bin_idx = StatsBase.binindex(h_uncal, peakpos[1])
+strongest_peak_bin_width = StatsBase.binvolume(h_uncal, strongest_peak_bin_idx)
+strongest_peak_bin_amplitude = h_uncal.weights[strongest_peak_bin_idx]
+
+plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), ylims=[0, strongest_peak_bin_amplitude * 1.1]) </code></pre><ol><li>Write a model function</li></ol><div><pre><code class="language-julia">function model(x::T, par::Vector{T}) where {T}
+    scale::T = par[1]
+    σ::T     = par[2]
+    μ::T     = par[3]
+    cp0::T   = par[4]
+    cp1::T   = par[5]
+    return scale * exp(-0.5 * ((x - μ)^2) / (σ^2)) / (sqrt(2 * π * σ^2)) + cp0 + cp1 * (x - μ)
+end
+function model(x::Vector{T}, par::Vector{T}) where {T} return T[model(v, par) for v in x] end;</code></pre></div><ol><li>Set up the fit function <a href="../../api/#RadiationSpectra.FitFunction"><code>RadiationSpectra.FitFunction{T}</code></a></li></ol><pre><code class="language-">fitfunc = RadiationSpectra.FitFunction( model ); 
+fitfunc.fitrange = (peakpos[1] - 1000, peakpos[1] + 1000)
+guess_σ = strongest_peak_bin_width * 2
+guess_amplitude = strongest_peak_bin_amplitude * guess_σ
+guess_μ = peakpos[1]
+guess_offset = 0
+guess_bg_slope = 0
+fitfunc.initial_parameters = [ guess_amplitude, guess_σ, guess_μ, guess_offset, guess_bg_slope ]
+fitfunc</code></pre><ol><li>Performe the fit with the <a href="../../api/#RadiationSpectra.llhfit!-Tuple{RadiationSpectra.FitFunction,StatsBase.Histogram}"><code>RadiationSpectra.llhfit!</code></a>-function and plot the result</li></ol><pre><code class="language-">RadiationSpectra.llhfit!(fitfunc, h_uncal)
+
+plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label=&quot;Spectrum&quot;, ylims=[0, strongest_peak_bin_amplitude * 1.1])
+plot!(fitfunc, use_initial_parameters=true, lc=:green, label=&quot;Guess&quot;)
+plot!(fitfunc, lc=:red, label=&quot;LLH Fit&quot;)</code></pre><pre><code class="language-">fitfunc # hide</code></pre><h2><a class="nav-anchor" id="LSQ-Fit-1D-Histogram-1" href="#LSQ-Fit-1D-Histogram-1"><code>LSQ Fit - 1D-Histogram</code></a></h2><p>To perfrom a LSQ Fit on a spectrum repeat the first three steps from the <a href="#Likelihood-(LLH)-Fit-1D-Histogram-1">Likelihood (LLH) Fit - 1D-Histogram</a>. Then, </p><ol><li>Performe the fit with the <a href="../../api/#RadiationSpectra.lsqfit!-Tuple{RadiationSpectra.FitFunction,StatsBase.Histogram}"><code>RadiationSpectra.lsqfit!</code></a>-function and plot the result</li></ol><pre><code class="language-">RadiationSpectra.lsqfit!(fitfunc, h_uncal)
+
+plot(h_uncal, st=:step, xlims=[peakpos[1] - strongest_peak_bin_width * 20, peakpos[1] + strongest_peak_bin_width * 20], size=(800,400), label=&quot;Spectrum&quot;, ylims=[0, strongest_peak_bin_amplitude * 1.1])
+plot!(fitfunc, use_initial_parameters=true, lc=:green, label=&quot;Guess&quot;)
+plot!(fitfunc, lc=:red, label=&quot;LSQ Fit&quot;)</code></pre><pre><code class="language-">fitfunc # hide</code></pre><h2><a class="nav-anchor" id="LSQ-Fit-1D-Data-Arrays-1" href="#LSQ-Fit-1D-Data-Arrays-1"><code>LSQ Fit - 1D-Data Arrays</code></a></h2><ul><li>Write a model function</li></ul><pre><code class="language-">using Plots, RadiationSpectra
+myfont = Plots.font(12) # hide
+pyplot(guidefont=myfont, xtickfont=myfont, ytickfont=myfont, legendfont=myfont, titlefont=myfont) # hide
+function model(x::T, par::Vector{T}) where {T}
+    cp0::T   = par[1] 
+    cp1::T   = par[2]
+    return cp0 + cp1 * x
+end
+function model(x::Vector{T}, par::Vector{T}) where {T} return T[model(v, par) for v in x] end;</code></pre><ul><li>Create some random data </li></ul><pre><code class="language-">xdata = Float64[1, 2, 3, 6, 8, 12]
+ydata = Float64[model(x, [-0.2, 0.7]) + (rand() - 0.5) for x in xdata]
+xdata_err = Float64[0.5 for i in eachindex(xdata)]
+ydata_err = Float64[1 for i in eachindex(xdata)]
+
+plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), label=&quot;Data&quot;)</code></pre><ul><li>Set up the fit function <a href="../../api/#RadiationSpectra.FitFunction"><code>RadiationSpectra.FitFunction{T}</code></a></li></ul><pre><code class="language-">fitfunc = RadiationSpectra.FitFunction( model ); 
+fitfunc.fitrange = (xdata[1], xdata[end])
+guess_offset = 0
+guess_bg_slope = 1
+fitfunc.initial_parameters = Float64[ guess_offset, guess_bg_slope ]
+fitfunc</code></pre><ul><li>Performe the fit and plot the result</li></ul><pre><code class="language-">RadiationSpectra.lsqfit!(fitfunc, xdata, ydata, xdata_err, ydata_err) # xdata_err and ydata_err are optional
+
+plot(xdata, ydata, xerr=xdata_err, yerr=ydata_err, st=:scatter, size=(800,400), label=&quot;Data&quot;)
+plot!(fitfunc, use_initial_parameters=true, lc=:green, label=&quot;Guess&quot;)
+plot!(fitfunc, lc=:red, label=&quot;LSQ Fit&quot;)</code></pre><pre><code class="language-">fitfunc # hide</code></pre><footer><hr/><a class="previous" href="../spectrum_deconvolution/"><span class="direction">Previous</span><span class="title">Peak Finding</span></a><a class="next" href="../spectrum_calibration/"><span class="direction">Next</span><span class="title">Calibration</span></a></footer></article></body></html>
